@@ -61,6 +61,28 @@ titleText.y = titleBar.y
 -- Forward reference for chosen action
 local action = nil;
 
+
+-- Function to execute on completion of the address book ( ie. when it is dismissed )
+local function onComplete( event )	
+	print( "event.name:", event.name );
+	print( "event.type:", event.type );
+	
+	-- event.data is either a table or nil depending on the option chosen
+	print ( "event.data:", event.data );
+	
+	-- If there is event.data print it's key/value pairs
+	if event.data then
+		print( "event.data: {" );
+		
+		for k, v in pairs( event.data ) do
+			print( k , ":" , v );
+		end	
+		
+		print( "}" );
+	end
+end
+
+
 -- Pick contact options
 local pickContactOptions = 
 {
@@ -75,8 +97,9 @@ local pickContactOptions =
 	{
 		"phone", "email",
 		"birthday",
-	}
-	
+	},
+	-- The onComplete listener
+	listener = onComplete,
 }
 
 -- View contact options
@@ -94,7 +117,9 @@ local viewContactOptions =
 	filter =
 	{
 		"email", "birthday",
-	}
+	},
+	-- The onComplete listener
+	listener = onComplete,
 }
 
 -- New contact options
@@ -108,7 +133,9 @@ local newContactOptions =
 		organization = "Corona Labs", 
 		homePhone = "939222832", workPhone = "939392832", 
 		homeEmail = "jondoe@someorganization.com", workEmail = "johndoe@home.com",
-	}	
+	},
+	-- The onComplete listener
+	listener = onComplete,
 }
 
 -- Unknown contact options
@@ -133,27 +160,11 @@ local unknownContactOptions =
 		homePhone = "939222832", workPhone = "939392832", 
 		workEmail = "fake@coronalabs.com", homeEmail = "fake@home.com",
 	},
+	-- The onComplete listener
+	listener = onComplete,
 }
 
--- Function to execute on completion of the address book ( ie. when it is dismissed )
-local function onComplete( event )	
-	print( "event.name:", event.name );
-	print( "event.type:", event.type );
-	
-	-- event.data is either a table or nil depending on the option chosen
-	print ( "event.data:", event.data );
-	
-	-- If there is event.data print it's key/value pairs
-	if event.data then
-		print( "event.data: {" );
-		
-		for k, v in pairs( event.data ) do
-			print( k , ":" , v );
-		end	
-		
-		print( "}" );
-	end
-end
+
 
 -- Execute the chosen popup
 local function handleButtons(event)
@@ -161,19 +172,19 @@ local function handleButtons(event)
 		
 	-- Pick contact
 	if chosenOption == "pickContact" then
-		action = native.showPopup( "addressBook", pickContactOptions, onComplete );
+		action = native.showPopup( "addressBook", pickContactOptions );
 	
 	-- View contact
 	elseif chosenOption == "viewContact" then
-		action = native.showPopup( "addressBook", viewContactOptions, onComplete );
+		action = native.showPopup( "addressBook", viewContactOptions );
 	
 	-- Create new contact
 	elseif chosenOption == "newContact" then
-		action = native.showPopup( "addressBook", newContactOptions, onComplete );
+		action = native.showPopup( "addressBook", newContactOptions );
 
 	-- View Unknown contact
 	elseif chosenOption == "unknownContact" then
-		action = native.showPopup( "addressBook", unknownContactOptions, onComplete );
+		action = native.showPopup( "addressBook", unknownContactOptions );
 	end
 end
 

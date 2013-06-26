@@ -804,22 +804,23 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 		
 		// Assign the lua state so we can access it from within the delegate
 		delegate.luaState = L;
+
+		// Set the callback reference to 0
+		delegate.callbackRef = 0;
 		
 		// Set reference to onComplete function
-		if ( lua_gettop( L ) > 1 )
+		if ( lua_istable( L, 2 ) )
 		{
+			// Get listener key
+			lua_getfield( L, 2, "listener" );
+			
 			// Set the delegates callbackRef to reference the onComplete function (if it exists)
-			if ( lua_isfunction( L, lua_gettop( L ) ) )
+			if ( lua_isfunction( L, -1 ) )
 			{
 				delegate.callbackRef = luaL_ref( L, LUA_REGISTRYINDEX );
 			}
 		}
-		// If there is only one item on the stack then set the callbackRef to 0;
-		else
-		{
-			delegate.callbackRef = 0;
-		}
-				
+		
 		// Initialize the display filters array
 		delegate.contactDisplayFilters = [[NSMutableArray alloc] init];
 
