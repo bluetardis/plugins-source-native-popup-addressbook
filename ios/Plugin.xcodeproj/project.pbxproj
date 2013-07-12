@@ -25,7 +25,7 @@
 /* Begin PBXFileReference section */
 		A487BBE61680213E00047EB2 /* IOSAddressBookNativePopupProvider.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = IOSAddressBookNativePopupProvider.h; path = Plugin/IOSAddressBookNativePopupProvider.h; sourceTree = "<group>"; };
 		A487BBE71680213E00047EB2 /* IOSAddressBookNativePopupProvider.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = IOSAddressBookNativePopupProvider.mm; path = Plugin/IOSAddressBookNativePopupProvider.mm; sourceTree = "<group>"; };
-		A4E253B6166D6FB300DCDC2C /* libnative-popup-twitter.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libnative-popup-twitter.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A4E253B6166D6FB300DCDC2C /* libnative-popup-addressbook.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libnative-popup-addressbook.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,7 +59,7 @@
 		A484111A15114F700074BD57 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A4E253B6166D6FB300DCDC2C /* libnative-popup-twitter.a */,
+				A4E253B6166D6FB300DCDC2C /* libnative-popup-addressbook.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -81,7 +81,7 @@
 			);
 			name = "native-popup-addressbook";
 			productName = plugin_library;
-			productReference = A4E253B6166D6FB300DCDC2C /* libnative-popup-twitter.a */;
+			productReference = A4E253B6166D6FB300DCDC2C /* libnative-popup-addressbook.a */;
 			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */

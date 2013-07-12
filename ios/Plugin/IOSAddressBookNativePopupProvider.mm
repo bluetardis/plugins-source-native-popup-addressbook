@@ -1133,7 +1133,7 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 // ----------------------------------------------------------------------------
 
 CORONA_EXPORT
-int luaopen_CoronaProvider_native_popup_addressBook( lua_State *L )
+int luaopen_CoronaProvider_native_popup_addressbook( lua_State *L )
 {
 	return Corona::IOSAddressBookNativePopupProvider::Open( L );
 }
