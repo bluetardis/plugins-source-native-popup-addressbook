@@ -111,7 +111,7 @@ local viewContactOptions =
 	-- Specifies whether the user can edit the person’s information.
 	isEditable = true,
 	-- (Required) Name of the contact you wish to view.
-	name = "Appleseed",
+	name = "miracle",
 	
 	-- Items to show in the detail view section of a contact.
 	filter =
@@ -172,19 +172,19 @@ local function handleButtons(event)
 		
 	-- Pick contact
 	if chosenOption == "pickContact" then
-		action = native.showPopup( "addressBook", pickContactOptions );
+		action = native.showPopup( "addressbook", pickContactOptions );
 	
 	-- View contact
 	elseif chosenOption == "viewContact" then
-		action = native.showPopup( "addressBook", viewContactOptions );
+		action = native.showPopup( "addressbook", viewContactOptions );
 	
 	-- Create new contact
 	elseif chosenOption == "newContact" then
-		action = native.showPopup( "addressBook", newContactOptions );
+		action = native.showPopup( "addressbook", newContactOptions );
 
 	-- View Unknown contact
 	elseif chosenOption == "unknownContact" then
-		action = native.showPopup( "addressBook", unknownContactOptions );
+		action = native.showPopup( "addressbook", unknownContactOptions );
 	end
 end
 

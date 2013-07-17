@@ -1,13 +1,10 @@
 settings =
 {
-	--[[
-	orientation = {
+	orientation = 
+	{
 		default = "portrait", 
-		supported = { "portrait", },
-		-- supported = { "landscapeLeft", "landscapeRight" },
-		-- supported = { "landscapeLeft", "landscapeRight", "portrait", "portraitUpsideDown", },
+		supported = { "portrait" },
 	},
-	--]]
 
 	iphone =
 	{
