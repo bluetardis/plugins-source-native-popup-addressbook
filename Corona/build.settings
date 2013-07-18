@@ -3,7 +3,7 @@ settings =
 	orientation = 
 	{
 		default = "portrait", 
-		supported = { "portrait" },
+		supported = { "portrait", "portraitUpsideDown" },
 	},
 
 	iphone =
@@ -20,5 +20,15 @@ settings =
 			},
 
 		},
-	}
+	},
+	
+	plugins =
+	{
+		-- key is the name passed to Lua's 'require()'
+		["CoronaProvider.native.popup.addressbook"] =
+		{
+			-- required
+			publisherId = "com.coronalabs",
+		},
+	},
 }
