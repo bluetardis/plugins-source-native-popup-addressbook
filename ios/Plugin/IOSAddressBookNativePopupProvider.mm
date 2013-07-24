@@ -924,345 +924,398 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 			// event.data table
 			lua_newtable( self.luaState );
 
-			// Create multi value references 
-			ABMultiValueRef phoneNumbers = ABRecordCopyValue(person, kABPersonPhoneProperty);
-			ABMultiValueRef emailAddresses = ABRecordCopyValue(person, kABPersonEmailProperty);			
-			ABMultiValueRef relatedNames = ABRecordCopyValue(person, kABPersonRelatedNamesProperty);
-			ABMultiValueRef addresses = ABRecordCopyValue(person, kABPersonAddressProperty);
-			ABMultiValueRef dates = ABRecordCopyValue(person, kABPersonDateProperty);
-			ABMultiValueRef socialProfiles = ABRecordCopyValue(person, kABPersonSocialProfileProperty);
-			ABMultiValueRef instantMessagingProfiles = ABRecordCopyValue(person, kABPersonInstantMessageProperty);
-						
-			// Retrieve contact details
-			NSString *contactFirstName = (NSString *)ABRecordCopyValue(person, kABPersonFirstNameProperty);
-			NSString *contactMiddleName = (NSString *)ABRecordCopyValue(person, kABPersonMiddleNameProperty);
-			NSString *contactLastName = (NSString *)ABRecordCopyValue(person, kABPersonLastNameProperty);
-			NSString *contactSuffix = (NSString *)ABRecordCopyValue(person, kABPersonSuffixProperty);
-			NSString *contactPhoneticFirstName = (NSString *)ABRecordCopyValue(person, kABPersonFirstNamePhoneticProperty);
-			NSString *contactPhoneticMiddleName = (NSString *)ABRecordCopyValue(person, kABPersonMiddleNamePhoneticProperty);
-			NSString *contactPhoneticLastName = (NSString *)ABRecordCopyValue(person, kABPersonLastNamePhoneticProperty);			
-			NSString *contactJobTitle = (NSString *)ABRecordCopyValue(person, kABPersonJobTitleProperty);
-			NSString *contactDepartment = (NSString *)ABRecordCopyValue(person, kABPersonDepartmentProperty);
-			NSDate *contactBirthday = (NSDate *)(ABRecordCopyValue(person, kABPersonBirthdayProperty));
+			// Create multi value references
+			CFArrayRef linkedContacts = ABPersonCopyArrayOfAllLinkedPeople(person);
 			
-			
-			// Add key/value pairs to the event.data table
-			if ( contactFirstName )
+			// Retrieve information from linked contacts
+			for ( CFIndex i = 0; i < CFArrayGetCount(linkedContacts); i ++ )
 			{
-				lua_pushstring( self.luaState, [contactFirstName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "firstName" ); // Key
-			}
+				// The linked contact
+				ABRecordRef linkedContact = CFArrayGetValueAtIndex(linkedContacts, i);
+				
+				// Retrieve contact details
+				NSString *contactFirstName = (NSString *)ABRecordCopyValue(linkedContact, kABPersonFirstNameProperty);
+				NSString *contactMiddleName = (NSString *)ABRecordCopyValue(linkedContact, kABPersonMiddleNameProperty);
+				NSString *contactLastName = (NSString *)ABRecordCopyValue(linkedContact, kABPersonLastNameProperty);
+				NSString *contactSuffix = (NSString *)ABRecordCopyValue(linkedContact, kABPersonSuffixProperty);
+				NSString *contactPhoneticFirstName = (NSString *)ABRecordCopyValue(linkedContact, kABPersonFirstNamePhoneticProperty);
+				NSString *contactPhoneticMiddleName = (NSString *)ABRecordCopyValue(linkedContact, kABPersonMiddleNamePhoneticProperty);
+				NSString *contactPhoneticLastName = (NSString *)ABRecordCopyValue(linkedContact, kABPersonLastNamePhoneticProperty);			
+				NSString *contactJobTitle = (NSString *)ABRecordCopyValue(linkedContact, kABPersonJobTitleProperty);
+				NSString *contactDepartment = (NSString *)ABRecordCopyValue(linkedContact, kABPersonDepartmentProperty);
+				NSDate *contactBirthday = (NSDate *)(ABRecordCopyValue(linkedContact, kABPersonBirthdayProperty));
 			
-			if ( contactMiddleName )
-			{
-				lua_pushstring( self.luaState, [contactMiddleName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "middleName" ); // Key
-			}
+				// Add key/value pairs to the event.data table
+				if ( contactFirstName )
+				{
+					lua_pushstring( self.luaState, [contactFirstName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "firstName" ); // Key
+				}
+				
+				if ( contactMiddleName )
+				{
+					lua_pushstring( self.luaState, [contactMiddleName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "middleName" ); // Key
+				}
 
-			if ( contactLastName )
-			{
-				lua_pushstring( self.luaState,  [contactLastName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "lastName" ); // Key
-			}
-			
-			if ( contactSuffix )
-			{
-				lua_pushstring( self.luaState, [contactSuffix UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "suffix" ); // Key
-			}
-			
-			if ( contactPhoneticFirstName )
-			{
-				lua_pushstring( self.luaState, [contactPhoneticFirstName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "phoneticFirstName" ); // Key
-			}
-			
-			if ( contactPhoneticMiddleName )
-			{
-				lua_pushstring( self.luaState, [contactPhoneticMiddleName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "phoneticMiddleName" ); // Key
-			}
-			
-			if ( contactPhoneticLastName )
-			{
-				lua_pushstring( self.luaState, [contactPhoneticLastName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "phoneticLastName" ); // Key
-			}
-			
-			if ( contactJobTitle )
-			{
-				lua_pushstring( self.luaState, [contactJobTitle UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "jobTitle" ); // Key
-			}
-			
-			if ( contactDepartment )
-			{
-				lua_pushstring( self.luaState, [contactDepartment UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "department" ); // Key
-			}
+				if ( contactLastName )
+				{
+					lua_pushstring( self.luaState,  [contactLastName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "lastName" ); // Key
+				}
+				
+				if ( contactSuffix )
+				{
+					lua_pushstring( self.luaState, [contactSuffix UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "suffix" ); // Key
+				}
+				
+				if ( contactPhoneticFirstName )
+				{
+					lua_pushstring( self.luaState, [contactPhoneticFirstName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "phoneticFirstName" ); // Key
+				}
+				
+				if ( contactPhoneticMiddleName )
+				{
+					lua_pushstring( self.luaState, [contactPhoneticMiddleName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "phoneticMiddleName" ); // Key
+				}
+				
+				if ( contactPhoneticLastName )
+				{
+					lua_pushstring( self.luaState, [contactPhoneticLastName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "phoneticLastName" ); // Key
+				}
+				
+				if ( contactJobTitle )
+				{
+					lua_pushstring( self.luaState, [contactJobTitle UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "jobTitle" ); // Key
+				}
+				
+				if ( contactDepartment )
+				{
+					lua_pushstring( self.luaState, [contactDepartment UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "department" ); // Key
+				}
 
-			if ( contactBirthday )
-			{
-				NSString *dateValue = [NSDateFormatter localizedStringFromDate:contactBirthday dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterNoStyle];
-				lua_pushstring( self.luaState, [dateValue UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "birthday" ); // Key
-			}
-			
-			// Retrieve and push instant messaging profiles
-			for( CFIndex i = 0; i < ABMultiValueGetCount(instantMessagingProfiles); i++ )
-			{
-				NSDictionary *socialDictionary = [(NSDictionary*)ABMultiValueCopyValueAtIndex(instantMessagingProfiles, i) autorelease];
-								
-				NSString *dictionaryService = [socialDictionary objectForKey:@"service"];
-				NSString *dictionaryUserName = [socialDictionary objectForKey:@"username"];
-				
-				// Create provider table
-				lua_newtable( self.luaState );
-				// Create inner table
-				lua_newtable( self.luaState );
-				
-				lua_pushstring( self.luaState, [dictionaryUserName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "username" ); // Key
-				
-				// Set inner table
-				lua_rawseti( self.luaState, -2, 1 );
-				
-				// Set outer table
-				lua_setfield( self.luaState, -2, [dictionaryService UTF8String] );
-			}
-
-			// Retrieve and push social profiles
-			for( CFIndex i = 0; i < ABMultiValueGetCount(socialProfiles); i++ )
-			{
-				NSDictionary *socialDictionary = [(NSDictionary*)ABMultiValueCopyValueAtIndex(socialProfiles, i) autorelease];
-				NSString *dictionaryService = [socialDictionary objectForKey:@"service"];
-				NSString *dictionaryUserName = [socialDictionary objectForKey:@"username"];
-				NSString *dictionaryUrl = [socialDictionary objectForKey:@"url"];
-				
-				// Create provider table
-				lua_newtable( self.luaState );
-				// Create inner table
-				lua_newtable( self.luaState );
-				
-				lua_pushstring( self.luaState, [dictionaryUrl UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "url" ); // Key
-				
-				lua_pushstring( self.luaState, [dictionaryUserName UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, "username" ); // Key
-				
-				// Set inner table
-				lua_rawseti( self.luaState, -2, 1 );
-				
-				// Set outer table
-				lua_setfield( self.luaState, -2, [dictionaryService UTF8String] );
-			}
-			
-			// Retrieve and push related names
-			for( CFIndex i = 0; i < ABMultiValueGetCount(relatedNames); i++ )
-			{
-				NSString *relatedNameLabel = [(NSString*)ABMultiValueCopyLabelAtIndex(relatedNames, i) autorelease];
-				NSString *relatedNameString = [(NSString*)ABMultiValueCopyValueAtIndex(relatedNames, i) autorelease];
- 
-				if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonParentLabel] )
+				if ( contactBirthday )
 				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "parent" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonFatherLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "father" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonMotherLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "mother" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonSisterLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "sister" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonBrotherLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "brother" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonChildLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "child" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonFriendLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "friend" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonSpouseLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "spouse" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonPartnerLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "partner" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonAssistantLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "assistant" ); // Key
-				}
-				else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonManagerLabel] )
-				{
-					lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, "manager" ); // Key
-				}
-			}
-
-			// Retrieve and push addresses
-			for ( CFIndex i = 0; i < ABMultiValueGetCount(addresses); i ++ )
-			{
-				CFDictionaryRef dict = (CFDictionaryRef)ABMultiValueCopyValueAtIndex(addresses, i);
-				
-				NSString *street = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStreetKey) copy];
-				NSString *city = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCityKey) copy];
-				NSString *state = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStateKey) copy];
-				NSString *zipCode = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressZIPKey) copy];
-				NSString *country = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCountryKey) copy];
-
-				NSString *streetKey = [NSString stringWithFormat:@"%s%ld", "otherStreet", ( -1 ) + i];
-				NSString *cityKey = [NSString stringWithFormat:@"%s%ld", "otherCity", ( -1 ) + i];
-				NSString *stateKey = [NSString stringWithFormat:@"%s%ld", "otherState", ( -1 ) + i];
-				NSString *zipKey = [NSString stringWithFormat:@"%s%ld", "otherZip", ( -1 ) + i];
-				NSString *countryKey = [NSString stringWithFormat:@"%s%ld", "otherCountry", ( -1 ) + i];
-				
-				switch( i )
-				{
-					case 0:
-						streetKey = @"homeStreet";
-						cityKey = @"homeCity";
-						stateKey = @"homeState";
-						zipKey = @"homeZip";
-						countryKey = @"homeCountry";
-						break;
-						
-					case 1:
-						streetKey = @"workStreet";
-						cityKey = @"workCity";
-						stateKey = @"workState";
-						zipKey = @"workZip";
-						countryKey = @"workCountry";
-						break;
-				}
-				
-				// Street
-				lua_pushstring( self.luaState, [street UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, [streetKey UTF8String] ); // Key
-				
-				// City
-				lua_pushstring( self.luaState, [city UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, [cityKey UTF8String] ); // Key
-				
-				// State
-				lua_pushstring( self.luaState, [state UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, [stateKey UTF8String] ); // Key
-				
-				// Zip
-				lua_pushstring( self.luaState, [zipCode UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, [zipKey UTF8String] ); // Key
-				
-				// Country
-				lua_pushstring( self.luaState, [country UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, [countryKey UTF8String] ); // Key
-			}
-			
-			// Retrieve and push email addresses
-			for ( int i = 0; i < ABMultiValueGetCount( emailAddresses ); i ++ )
-			{
-				NSString *email = (NSString *)ABMultiValueCopyValueAtIndex(emailAddresses, i);
-				NSString *key = [NSString stringWithFormat:@"%s%d", "otherEmail", ( -1 ) + i];
-				
-				if ( i == 0 ) key = @"homeEmail";
-				else if ( i == 1 ) key = @"workEmail";
-				
-				lua_pushstring( self.luaState, [email UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
-			}
-
-			// Retrieve and push phone numbers
-			for( int i = 0; i < ABMultiValueGetCount( phoneNumbers ); i ++ )
-			{
-				NSString *phone = (NSString *)ABMultiValueCopyValueAtIndex(phoneNumbers, i);
-				NSString *key = [NSString stringWithFormat:@"%s%d", "otherPhone", ( -8 ) + i];
-				
-				switch( i )
-				{
-					case 0:
-						key = @"phoneMobile";
-						break;
-					
-					case 1:
-						key = @"phoneIphone";
-						break;
-					
-					case 2:
-						key = @"phoneHome";
-						break;
-						
-					case 3:
-						key = @"phoneWork";
-						break;
-						
-					case 4:
-						key = @"phoneMain";
-						break;
-						
-					case 5:
-						key = @"faxHome";
-						break;
-						
-					case 6:
-						key = @"faxWork";
-						break;
-					 
-					case 7:
-						key = @"faxOther";
-						break;
-						
-					case 8:
-						key = @"pager";
-						break;
-				}
-								
-				lua_pushstring( self.luaState, [phone UTF8String] ); // Value
-				lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
-			}
-			
-			// Retrieve and push dates
-			for( int i = 0; i < ABMultiValueGetCount( dates ); i ++ )
-			{
-				ABMultiValueRef anniversaries = ABRecordCopyValue(person, kABPersonDateProperty);
-				
-				for (CFIndex i = 0; i < ABMultiValueGetCount(anniversaries); i ++ )
-				{
-					NSDate *anniversaryDate = (NSDate *)ABMultiValueCopyValueAtIndex(anniversaries, i);
-					NSString *dateValue = [NSDateFormatter localizedStringFromDate:anniversaryDate dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterNoStyle];
-					NSString *dateKey = [NSString stringWithFormat:@"%s%ld", "otherDate", i];
-
-					if ( i == 0 ) dateKey = @"anniversary";
-							
+					NSString *dateValue = [NSDateFormatter localizedStringFromDate:contactBirthday dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterNoStyle];
 					lua_pushstring( self.luaState, [dateValue UTF8String] ); // Value
-					lua_setfield( self.luaState, -2, [dateKey UTF8String] ); // Key
+					lua_setfield( self.luaState, -2, "birthday" ); // Key
+				}
+				
+				//----------- MULTIVALUE REFS-----------//
+				
+				// Retrieve and push url's
+				ABMultiValueRef allUrls = ABRecordCopyValue(linkedContact, kABPersonURLProperty);
+				
+				// Loop through the urls
+				for ( int j = 0; j < ABMultiValueGetCount( allUrls ); j ++ )
+				{
+					NSString *url = (NSString *)ABMultiValueCopyValueAtIndex(allUrls, j);
+					NSString *key = [NSString stringWithFormat:@"%s%d", "otherUrl", ( -2 ) + j];
+					
+					switch( j )
+					{
+						case 0:
+							key = @"homePageUrl";
+							break;
+							
+						case 1:
+							key = @"homeUrl";
+							break;
+							
+						case 2:
+							key = @"workUrl";
+							break;
+					}
+					
+					lua_pushstring( self.luaState, [url UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
+				}
+				
+				
+				// Retrieve and push instant messaging profiles
+				ABMultiValueRef instantMessageProfiles = ABRecordCopyValue(linkedContact, kABPersonInstantMessageProperty);
+				
+				// Loop through the instant message profiles
+				for ( int j = 0; j < ABMultiValueGetCount( instantMessageProfiles ); j ++ )
+				{
+					NSDictionary *socialDictionary = [(NSDictionary*)ABMultiValueCopyValueAtIndex(instantMessageProfiles, j) autorelease];
+					NSString *dictionaryService = [socialDictionary objectForKey:@"service"];
+					NSString *dictionaryUserName = [socialDictionary objectForKey:@"username"];
+					
+					// Create provider table
+					lua_newtable( self.luaState );
+					// Create inner table
+					lua_newtable( self.luaState );
+					
+					lua_pushstring( self.luaState, [dictionaryUserName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "username" ); // Key
+					
+					// Set inner table
+					lua_rawseti( self.luaState, -2, 1 );
+					
+					// Set outer table
+					lua_setfield( self.luaState, -2, [dictionaryService UTF8String] );
+				}
+			
+			
+				// Retrieve and push social profiles
+				ABMultiValueRef socialProfiles = ABRecordCopyValue(linkedContact, kABPersonSocialProfileProperty);
+
+				// Loop through the social profiles
+				for ( int j = 0; j < ABMultiValueGetCount( socialProfiles ); j ++ )
+				{
+					NSDictionary *socialDictionary = [(NSDictionary*)ABMultiValueCopyValueAtIndex(socialProfiles, j) autorelease];
+					NSString *dictionaryService = [socialDictionary objectForKey:@"service"];
+					NSString *dictionaryUserName = [socialDictionary objectForKey:@"username"];
+					NSString *dictionaryUrl = [socialDictionary objectForKey:@"url"];
+					
+					// Create provider table
+					lua_newtable( self.luaState );
+					// Create inner table
+					lua_newtable( self.luaState );
+					
+					lua_pushstring( self.luaState, [dictionaryUrl UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "url" ); // Key
+					
+					lua_pushstring( self.luaState, [dictionaryUserName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "username" ); // Key
+					
+					// Set inner table
+					lua_rawseti( self.luaState, -2, 1 );
+					
+					// Set outer table
+					lua_setfield( self.luaState, -2, [dictionaryService UTF8String] );
+				}
+			
+			
+				// Retrieve and push related names
+				ABMultiValueRef relatedNames = ABRecordCopyValue(linkedContact, kABPersonRelatedNamesProperty);
+			
+				// Loop through the related names
+				for ( int j = 0; j < ABMultiValueGetCount( relatedNames ); j ++ )
+				{
+					NSString *relatedNameLabel = [(NSString*)ABMultiValueCopyLabelAtIndex(relatedNames, j) autorelease];
+					NSString *relatedNameString = [(NSString*)ABMultiValueCopyValueAtIndex(relatedNames, j) autorelease];
+	 
+					if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonParentLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "parent" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonFatherLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "father" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonMotherLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "mother" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonSisterLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "sister" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonBrotherLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "brother" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonChildLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "child" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonFriendLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "friend" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonSpouseLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "spouse" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonPartnerLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "partner" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonAssistantLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "assistant" ); // Key
+					}
+					else if ( [relatedNameLabel isEqualToString:(NSString *)kABPersonManagerLabel] )
+					{
+						lua_pushstring( self.luaState, [relatedNameString UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, "manager" ); // Key
+					}
+				}
+				
+
+				// Retrieve and push addresses
+				ABMultiValueRef addresses = ABRecordCopyValue(linkedContact, kABPersonAddressProperty);
+				
+				// Loop through the addresses
+				for ( int j = 0; j < ABMultiValueGetCount( addresses ); j ++ )		
+				{
+					CFDictionaryRef dict = (CFDictionaryRef)ABMultiValueCopyValueAtIndex(addresses, j);
+					
+					NSString *street = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStreetKey) copy];
+					NSString *city = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCityKey) copy];
+					NSString *state = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStateKey) copy];
+					NSString *zipCode = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressZIPKey) copy];
+					NSString *country = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCountryKey) copy];
+
+					NSString *streetKey = [NSString stringWithFormat:@"%s%d", "otherStreet", ( -1 ) + j];
+					NSString *cityKey = [NSString stringWithFormat:@"%s%d", "otherCity", ( -1 ) + j];
+					NSString *stateKey = [NSString stringWithFormat:@"%s%d", "otherState", ( -1 ) + j];
+					NSString *zipKey = [NSString stringWithFormat:@"%s%d", "otherZip", ( -1 ) + j];
+					NSString *countryKey = [NSString stringWithFormat:@"%s%d", "otherCountry", ( -1 ) + j];
+					
+					switch( j )
+					{
+						case 0:
+							streetKey = @"homeStreet";
+							cityKey = @"homeCity";
+							stateKey = @"homeState";
+							zipKey = @"homeZip";
+							countryKey = @"homeCountry";
+							break;
+							
+						case 1:
+							streetKey = @"workStreet";
+							cityKey = @"workCity";
+							stateKey = @"workState";
+							zipKey = @"workZip";
+							countryKey = @"workCountry";
+							break;
+					}
+					
+					// Street
+					lua_pushstring( self.luaState, [street UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [streetKey UTF8String] ); // Key
+					
+					// City
+					lua_pushstring( self.luaState, [city UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [cityKey UTF8String] ); // Key
+					
+					// State
+					lua_pushstring( self.luaState, [state UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [stateKey UTF8String] ); // Key
+					
+					// Zip
+					lua_pushstring( self.luaState, [zipCode UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [zipKey UTF8String] ); // Key
+					
+					// Country
+					lua_pushstring( self.luaState, [country UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [countryKey UTF8String] ); // Key
+				}
+				
+			
+				// Retrieve and push email addresses
+				ABMultiValueRef emailAddresses = ABRecordCopyValue(linkedContact, kABPersonEmailProperty);
+				
+				// Loop through the emails
+				for ( int j = 0; j < ABMultiValueGetCount( emailAddresses ); j ++ )
+				{
+					NSString *email = (NSString *)ABMultiValueCopyValueAtIndex(emailAddresses, j);
+					NSString *key = [NSString stringWithFormat:@"%s%d", "otherEmail", ( -1 ) + j];
+					
+					if ( j == 0 ) key = @"homeEmail";
+					else if ( j == 1 ) key = @"workEmail";
+					
+					lua_pushstring( self.luaState, [email UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
+				}
+				
+
+				// Retrieve and push phone numbers
+				ABMultiValueRef phoneNumbers = ABRecordCopyValue(linkedContact, kABPersonPhoneProperty);
+				
+				// Loop through the phone numbers
+				for ( int j = 0; j < ABMultiValueGetCount( phoneNumbers ); j ++ )
+				{
+					NSString *phone = (NSString *)ABMultiValueCopyValueAtIndex(phoneNumbers, j);
+					NSString *key = [NSString stringWithFormat:@"%s%d", "otherPhone", ( -8 ) + j];
+					
+					switch( j )
+					{
+						case 0:
+							key = @"phoneMobile";
+							break;
+						
+						case 1:
+							key = @"phoneIphone";
+							break;
+						
+						case 2:
+							key = @"phoneHome";
+							break;
+							
+						case 3:
+							key = @"phoneWork";
+							break;
+							
+						case 4:
+							key = @"phoneMain";
+							break;
+							
+						case 5:
+							key = @"faxHome";
+							break;
+							
+						case 6:
+							key = @"faxWork";
+							break;
+						 
+						case 7:
+							key = @"faxOther";
+							break;
+							
+						case 8:
+							key = @"pager";
+							break;
+					}
+									
+					lua_pushstring( self.luaState, [phone UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
+				}
+				
+			
+				// Retrieve and push dates
+				ABMultiValueRef dates = ABRecordCopyValue(linkedContact, kABPersonDateProperty);
+				
+				// Loop through the dates
+				for ( int j = 0; j < ABMultiValueGetCount( dates ); j ++ )
+				{
+					ABMultiValueRef anniversaries = ABRecordCopyValue(person, kABPersonDateProperty);
+					
+					for (CFIndex i = 0; i < ABMultiValueGetCount(anniversaries); j ++ )
+					{
+						NSDate *anniversaryDate = (NSDate *)ABMultiValueCopyValueAtIndex(anniversaries, j);
+						NSString *dateValue = [NSDateFormatter localizedStringFromDate:anniversaryDate dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterNoStyle];
+						NSString *dateKey = [NSString stringWithFormat:@"%s%d", "otherDate", j];
+
+						if ( j == 0 ) dateKey = @"anniversary";
+								
+						lua_pushstring( self.luaState, [dateValue UTF8String] ); // Value
+						lua_setfield( self.luaState, -2, [dateKey UTF8String] ); // Key
+					}
 				}
 			}
 
 			// Set event.data
 			lua_setfield( self.luaState, -2, "data" );
-
-			// Cleanup
-			CFRelease( phoneNumbers );
-			CFRelease( emailAddresses );
 		}
 
 		// Set table events ( event.* )
