@@ -69,6 +69,12 @@ function scene:enterScene( event )
 		listener = nil,
 	}
 	
+	-- Create some information text
+	local createContactText = display.newText( group, "Create A Contact", 0, 50, native.systemFontBold, 16 )
+	createContactText.x = display.contentCenterX
+	createContactText:setTextColor( 0 )
+	
+	
 	-- Listener for the email input field	
 	local function onUserEmailInput( event )
 		local phase = event.phase
@@ -83,7 +89,8 @@ function scene:enterScene( event )
 	-- The email field
 	local emailField = native.newTextField( 20, 50, 280, 30 )
 	emailField.x = display.contentCenterX
-	emailField.placeholder = "Email address to prefil new contact's email field"
+	emailField.y = createContactText.y + createContactText.contentHeight + 15
+	emailField.placeholder = "Email Address"
 	emailField:addEventListener( "userInput", onUserEmailInput )
 	emailField:setReturnKey( "done" )
 	emailField.inputType = "email"
@@ -103,15 +110,15 @@ function scene:enterScene( event )
 	-- The organization field
 	local organizationField = native.newTextField( 20, 90, 280, 30 )
 	organizationField.x = display.contentCenterX
-	organizationField.placeholder = "Organization name to prefil the new contact's organization field"
+	organizationField.y = emailField.y + emailField.contentHeight * 0.5 + 25
+	organizationField.placeholder = "Organization"
 	organizationField:addEventListener( "userInput", onUserOrganizationInput )
 	organizationField:setReturnKey( "done" )
 	self.organizationField = organizationField
 	
 	-- Create a text box that will be used to display the information retrieved from the onComplete listener below
-	local textBox = native.newTextBox( 20, 140, 280, 200 )
+	local textBox = native.newTextBox( 20, 160, 280, 180 )
 	textBox.isEditable = false
-	textBox.text = "Output:\n\n"
 	textBox.size = 16
 	self.textBox = textBox
 	
@@ -167,11 +174,16 @@ scene:addEventListener( "enterScene" )
 
 -- Our exit scene function
 function scene:exitScene( event )
+	display.remove( self.textBox )
+	self.textBox = nil
+	
 	display.remove( self.emailField )
 	self.emailField = nil
 	
 	display.remove( self.organizationField )
 	self.organizationField = nil
+	
+	storyboard.removeAll()
 end
 
 scene:addEventListener( "exitScene" )

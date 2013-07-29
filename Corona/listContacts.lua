@@ -76,13 +76,12 @@ function scene:enterScene( event )
 	}
 	
 	-- Create some text to show the selected contacts name
-	local contactName = display.newText( group, "Selected Contact: ", 20, 50, 300, 0, native.systemFontBold, 16 )
+	local contactName = display.newText( group, "Select A Contact: ", 20, 50, 300, 0, native.systemFontBold, 16 )
 	contactName:setTextColor( 0 )
 	
 	-- Create a text box that will be used to display the information retrieved from the onComplete listener below
 	local textBox = native.newTextBox( 20, 100, 280, 240 )
 	textBox.isEditable = false
-	textBox.text = "Output:\n\n"
 	textBox.size = 16
 	self.textBox = textBox
 	
@@ -122,7 +121,7 @@ function scene:enterScene( event )
 			end	
 			
 			-- Set the contacts name
-			contactName.text = "selected Contact:\n         " .. firstName .. " " .. lastName
+			contactName.text = "Selected Contact:\n " .. firstName .. " " .. lastName
 			contactName.y = 65
 
 			print( "}" );
@@ -156,6 +155,8 @@ scene:addEventListener( "enterScene" )
 function scene:exitScene( event )
 	display.remove( self.textBox )
 	self.textBox = nil
+	
+	storyboard.removeAll()
 end
 
 scene:addEventListener( "exitScene" )

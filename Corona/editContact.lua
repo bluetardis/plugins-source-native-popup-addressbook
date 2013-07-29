@@ -101,7 +101,6 @@ function scene:enterScene( event )
 	-- Create a text box that will be used to display the information retrieved from the onComplete listener below
 	local textBox = native.newTextBox( 20, 120, 280, 220 )
 	textBox.isEditable = false
-	textBox.text = "Output:\n\n"
 	textBox.size = 16
 	self.textBox = textBox
 	
@@ -172,6 +171,8 @@ function scene:exitScene( event )
 	
 	display.remove( self.nameField )
 	self.nameField = nil
+	
+	storyboard.removeAll()
 end
 
 scene:addEventListener( "exitScene" )
