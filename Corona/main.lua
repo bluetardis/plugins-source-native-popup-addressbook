@@ -35,6 +35,11 @@
 local widget = require( "widget" )
 local storyboard = require( "storyboard" )
 
+-- If we are on the simulator, show a warning that this plugin is only supported on device
+if "simulator" == system.getInfo( "environment" ) then
+	native.showAlert( "Build for device", "This plugin is not supported on the Corona Simulator, please build for an iOS device or Xcode simulator", { "OK" } )
+end
+
 -- Set the status bar to show the default iOS status bar
 display.setStatusBar( display.HiddenStatusBar )
 
