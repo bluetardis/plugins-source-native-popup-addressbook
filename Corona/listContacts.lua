@@ -107,17 +107,30 @@ function scene:enterScene( event )
 					vv = "table"
 				end
 				
+				if type( v ) == "userdata" then
+					vv = "userdata"
+				end
+				
+				-- Print the picture table
+				if "picture" == k then
+					for a, b in pairs( v ) do
+						print( a, b )
+					end
+				end
+				
 				textBox.text = textBox.text .. " " .. kk .. ":  " .. vv .. "\n"
 				print( k , ":" , v );
 				
 				-- Set the first name
-				if k == "firstName" then
-					firstName = v
-				end
+				if "string" == type( v ) then
+					if k == "firstName" then
+						firstName = v
+					end
 				
-				-- Set the second name
-				if k == "lastName" then
-					lastName = v
+					-- Set the second name
+					if k == "lastName" then
+						lastName = v
+					end
 				end
 			end	
 			

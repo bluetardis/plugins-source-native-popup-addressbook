@@ -1591,8 +1591,57 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 				NSString *contactNickName = (NSString *)ABRecordCopyValue(linkedContact, kABPersonNicknameProperty);
 				NSDate *contactBirthday = (NSDate *)(ABRecordCopyValue(linkedContact, kABPersonBirthdayProperty));
 				
-			
 				// Add key/value pairs to the event.data table
+				
+				// If the contact has a picture, save it to a file and tell lua where it is
+				if ( ABPersonHasImageData( person ) )
+				{
+					NSData *contactPictureData = (NSData *)ABPersonCopyImageDataWithFormat(person, kABPersonImageFormatOriginalSize);
+					UIImage *image = [UIImage imageWithData:contactPictureData];
+					NSString *pictureFileDirectory = @"Documents";
+					NSString *pictureFileName = @"contactPicture.png";
+					NSString *pictureFilePath = nil;
+					
+					// Set the name of the contact picture file
+					if ( contactFirstName && contactLastName )
+					{
+						pictureFileName = [NSString stringWithFormat:@"%s%s.png", [contactFirstName UTF8String], [contactLastName UTF8String] ];
+					}
+					if ( !contactFirstName && contactLastName )
+					{
+						pictureFileName = [NSString stringWithFormat:@"%s.png", [contactLastName UTF8String] ];
+					}
+					if ( ! contactFirstName && ! contactLastName && contactPhoneticFirstName && contactPhoneticLastName )
+					{
+						pictureFileName = [NSString stringWithFormat:@"%s%s.png", [contactPhoneticFirstName UTF8String], [contactPhoneticLastName UTF8String] ];
+					}
+					
+					// Set the picture file path
+					pictureFilePath = [NSString stringWithFormat:@"%@/%@", pictureFileDirectory, pictureFileName ];
+					
+					// Set the output path
+					NSString *pngPath = [NSHomeDirectory() stringByAppendingPathComponent:pictureFilePath];
+					
+					// Write the image to a png file
+					[UIImagePNGRepresentation(image) writeToFile:pngPath atomically:YES];
+					
+					// Create a table to store the picture data
+					lua_newtable( self.luaState );
+					
+					// Set the filename
+					lua_pushstring( self.luaState, [pictureFileName UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, "fileName" ); // Key
+					
+					// Set the base directory
+					lua_getglobal( self.luaState, "system" );
+					lua_getfield( self.luaState, -1, "DocumentsDirectory" );
+					lua_setfield( self.luaState, -3, "baseDir" );
+					lua_pop( self.luaState, 1 ); //Pop the system table
+					
+					// Set the "picture" table
+					lua_setfield( self.luaState, -2, "picture" );
+				}
+				
 				if ( contactFirstName )
 				{
 					lua_pushstring( self.luaState, [contactFirstName UTF8String] ); // Value
@@ -1963,19 +2012,14 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 				// Loop through the dates
 				for ( int j = 0; j < ABMultiValueGetCount( dates ); j ++ )
 				{
-					ABMultiValueRef anniversaries = ABRecordCopyValue(person, kABPersonDateProperty);
-					
-					for (CFIndex i = 0; i < ABMultiValueGetCount(anniversaries); j ++ )
-					{
-						NSDate *anniversaryDate = (NSDate *)ABMultiValueCopyValueAtIndex(anniversaries, j);
-						NSString *dateValue = [NSDateFormatter localizedStringFromDate:anniversaryDate dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterNoStyle];
-						NSString *dateKey = [NSString stringWithFormat:@"%s%d", "otherDate", j];
+					NSDate *anniversaryDate = (NSDate *)ABMultiValueCopyValueAtIndex(dates, j);
+					NSString *dateValue = [NSDateFormatter localizedStringFromDate:anniversaryDate dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterNoStyle];
+					NSString *dateKey = [NSString stringWithFormat:@"%s%d", "otherDate", j];
 
-						if ( j == 0 ) dateKey = @"anniversary";
+					if ( j == 0 ) dateKey = @"anniversary";
 								
-						lua_pushstring( self.luaState, [dateValue UTF8String] ); // Value
-						lua_setfield( self.luaState, -2, [dateKey UTF8String] ); // Key
-					}
+					lua_pushstring( self.luaState, [dateValue UTF8String] ); // Value
+					lua_setfield( self.luaState, -2, [dateKey UTF8String] ); // Key
 				}
 			}
 
