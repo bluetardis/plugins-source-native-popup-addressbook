@@ -68,8 +68,9 @@ function scene:enterScene( event )
 		-- Items to show in the detail view section of a contact.
 		filter = 
 		{
-			"phone", "email",
-			"birthday",
+			"phone", "email", "address",
+			"birthday", "relatedNames",
+			"socialProfiles", "instantMessagingProfiles",
 		},
 		-- The onComplete listener
 		listener = nil,

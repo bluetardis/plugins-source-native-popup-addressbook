@@ -1100,7 +1100,12 @@ pickContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 		// Items to display
 		NSNumber *propertiesPersonPhone = [[NSNumber alloc] initWithInt:(int)kABPersonPhoneProperty];
 		NSNumber *propertiesPersonEmail = [[NSNumber alloc] initWithInt:(int)kABPersonEmailProperty];
+		NSNumber *propertiesPersonUrl = [[NSNumber alloc] initWithInt:(int)kABPersonURLProperty];
 		NSNumber *propertiesPersonBirthday = [[NSNumber alloc] initWithInt:(int)kABPersonBirthdayProperty];
+		NSNumber *propertiesPersonRelatedNames = [[NSNumber alloc] initWithInt:(int)kABPersonRelatedNamesProperty];
+		NSNumber *propertiesPersonAddress = [[NSNumber alloc] initWithInt:(int)kABPersonAddressProperty];
+		NSNumber *propertiesPersonSocialProfile = [[NSNumber alloc] initWithInt:(int)kABPersonSocialProfileProperty];
+		NSNumber *propertiesPersonInstantMessagingProfile = [[NSNumber alloc] initWithInt:(int)kABPersonInstantMessageProperty];		
 
 		// Check if a filter exists and matches the required name, if it does, display it
 		int numOfFilters = [delegate.contactDisplayFilters count];
@@ -1117,9 +1122,29 @@ pickContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 			{
 				[displayedItems addObject:propertiesPersonEmail];
 			}
+			else if ( 0 == strcmp( "urls", currentFilter ) )
+			{
+				[displayedItems addObject:propertiesPersonUrl];
+			}
 			else if ( 0 == strcmp( "birthday", currentFilter ) )
 			{
 				[displayedItems addObject:propertiesPersonBirthday];
+			}
+			else if ( 0  == strcmp( "relatedNames", currentFilter ) )
+			{
+				[displayedItems addObject:propertiesPersonRelatedNames];
+			}
+			else if ( 0 == strcmp( "address", currentFilter ) )
+			{
+				[displayedItems addObject:propertiesPersonAddress];
+			}
+			else if ( 0 == strcmp( "socialProfiles", currentFilter ) )
+			{
+				[displayedItems addObject:propertiesPersonSocialProfile];
+			}
+			else if ( 0 == strcmp( "instantMessagingProfiles", currentFilter ) )
+			{
+				[displayedItems addObject:propertiesPersonInstantMessagingProfile];
 			}
 		}
 
@@ -1129,7 +1154,11 @@ pickContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 		// Cleanup
 		[propertiesPersonPhone release];
 		[propertiesPersonEmail release];
+		[propertiesPersonUrl release];
 		[propertiesPersonBirthday release];
+		[propertiesPersonRelatedNames release];
+		[propertiesPersonSocialProfile release];
+		[propertiesPersonInstantMessagingProfile release];
 		[displayedItems release];
 	}
 	
