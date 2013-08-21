@@ -62,8 +62,80 @@ function scene:enterScene( event )
 		-- (Required) table containing key/value pairs to pre-fill a new contact's details with.
 		data = 
 		{
-			organization = "", 
-			homeEmail = "",
+			--Names
+			firstName = "first Name",
+			middleName = "middle Name",
+			lastName = "last Name",
+			organization = "organization", 
+			jobTitle = "job Title",
+			birthday = "10/02/1952", --M-D-Y -<< us style
+			prefix = "prefix",
+			suffix = "suffix",
+			nickname = "nickname",
+			-- Other
+			phoneticFirstName = "phoneticFirstName",
+			phoneticMiddleName = "phoneticMiddleName",
+			phoneticLastName = "phoneticLastName",
+			-- Emails
+			homeEmail = "homeEmail@a.com",
+			workEmail = "workEmail@a.com",
+			-- Phone
+			phoneHome = "99",
+			phoneWork = "030",
+			phoneIphone = "094983737",
+			phoneMobile = "03932",
+			phoneMain = "030303",
+			--Fax
+			faxHome = "030320",
+			faxWork = "0305343320",
+			faxOther = "0303322342342320",
+			--Pager
+			pager = "1111",
+			--Urls
+			homePageUrl = "www.homepageurl.com",
+			workUrl = "www.workurl.com",
+			homeUrl = "www.homeurl.com",
+			-- Address
+			homeStreet = "homeStreet",
+			homeCity = "homeCity",
+			homeState = "homeState",
+			homeZip = "homeZip",
+			homeCountry = "homeCountry",	
+			workStreet = "WorkStreet",
+			workCity = "workCity",
+			workState = "workState",
+			workZip = "workZip",
+			workCountry = "workCountry",		
+			-- People
+			father = "father",
+			mother = "mother",
+			parent = "parent",
+			brother = "brother",
+			sister = "sister",
+			child = "child",
+			friend = "friend",
+			spouse = "spouse",
+			partner = "partner",
+			assistant = "assistant",
+			manager = "manager", 
+			-- Social
+			socialFacebook = "social facebook",
+			socialTwitter = "www.twitter.com",
+			socialGameCenter = "gameCenter",
+			socialFlickr = "flickr",
+			socialLinkedIn = "linkedIn",
+			socialMyspace = "myspace",
+			socialSinaWeibo = "sinaWeibo",
+			instantMessagingFacebook = "IM Facebook",
+			instantMessagingAim = "IM Aim",
+			instantMessagingGaduGadu = "IM Gadu Gadu",
+			instantMessagingGoogleTalk = "IM Google Talk",
+			instantMessagingICQ = "IM ICQ",
+			instantMessagingJabber = "IM Jabber",
+			instantMessagingMSN = "IM MSN",
+			instantMessagingQQ = "IM QQ",
+			instantMessagingSkype = "IM Skype",
+			instantMessagingYahoo = "IM Yahoo",			
 		},
 		-- The onComplete listener
 		listener = nil,
