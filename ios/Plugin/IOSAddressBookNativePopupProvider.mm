@@ -203,24 +203,6 @@ static const char kOptionViewContact[] = "viewContact";
 static const char kOptionNewContact[] = "newContact";
 static const char kOptionUnknownContact[] = "unknownContact";
 
-// Get a lua string
-static const char *
-luaGetString( lua_State *L, int index )
-{
-	const char *result = lua_tostring( L, index );
-	return result;
-}
-
-
-// Get a lua bool
-static bool
-luaGetBool( lua_State *L, int index )
-{
-	bool result = lua_toboolean( L, index );
-	return result;
-}
-
-
 // Get a lua string from a field
 static const char *
 luaGetStringFromField( lua_State *L, int index, const char *field )
@@ -231,7 +213,7 @@ luaGetStringFromField( lua_State *L, int index, const char *field )
 	lua_getfield( L, index, field );
 	if ( lua_isstring( L, -1 ) )
 	{
-		result = luaGetString( L, -1 );
+		result = lua_tostring( L, -1 );
 	}
 	else
 	{
@@ -258,7 +240,7 @@ luaGetBoolFromField( lua_State *L, int index, const char *field )
 	lua_getfield( L, index, field );
 	if ( lua_isboolean( L, -1 ) )
 	{
-		result = luaGetBool( L, -1 );
+		result = lua_toboolean( L, -1 );
 	}
 	else
 	{
