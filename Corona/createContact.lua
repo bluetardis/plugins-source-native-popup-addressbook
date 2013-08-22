@@ -135,7 +135,7 @@ function scene:enterScene( event )
 			instantMessagingMSN = "IM MSN",
 			instantMessagingQQ = "IM QQ",
 			instantMessagingSkype = "IM Skype",
-			instantMessagingYahoo = "IM Yahoo",			
+			instantMessagingYahoo = "IM Yahoo",		
 		},
 		-- The onComplete listener
 		listener = nil,
@@ -201,7 +201,7 @@ function scene:enterScene( event )
 
 		-- event.data is either a table or nil depending on the option chosen
 		print ( "event.data:", event.data );
-
+		
 		-- If there is event.data print it's key/value pairs
 		if event.data then
 			print( "event.data: {" );
@@ -218,7 +218,7 @@ function scene:enterScene( event )
 			end	
 
 			print( "}" );
-		end		
+		end
 	end
 	
 	-- Set the listener

@@ -48,7 +48,7 @@
 
 // Lua
 @property (nonatomic, assign) lua_State *luaState; // Pointer to the current lua state
-@property (nonatomic) int callbackRef; // Reference to store our onComplete function
+@property (nonatomic) Corona::Lua::Ref listenerRef; // Reference to store our onComplete function
 
 @end
 
@@ -203,78 +203,73 @@ static const char kOptionViewContact[] = "viewContact";
 static const char kOptionNewContact[] = "newContact";
 static const char kOptionUnknownContact[] = "unknownContact";
 
-
-// Retrieve boolean value from lua
-static int
-luaRetrieveBool( lua_State *L, int index, const char *name, const char *chosenAddressBookOption )
+// Get a lua string
+static const char *
+luaGetString( lua_State *L, int index )
 {
-	bool result = false;
-
-	// Get field
-	if ( ! lua_isnoneornil( L, index ) && lua_istable( L, index ) )
-	{
-		// Options table exists, retrieve name key
-		lua_getfield( L, index, name );
-	}
-	// If the details table exists
-	if ( lua_isboolean( L, -1 ) )
-	{
-		// Retrieve the bool
-		result = lua_toboolean( L, -1 );
-        
-		lua_pop( L, 1 );
-	}
-	// If the value isn't a bool, and it wasn't ommited, throw an error.
-	else if ( ! lua_isnoneornil( L, -1 ) && lua_istable( L, index ) && ! lua_isboolean( L, -1 ) )
-	{
-		luaL_error( L, "'%s' passed to %s must be a boolean value", name, chosenAddressBookOption );
-	}
-
+	const char *result = lua_tostring( L, index );
 	return result;
 }
 
-// Retrieve string from lua
+
+// Get a lua bool
+static bool
+luaGetBool( lua_State *L, int index )
+{
+	bool result = lua_toboolean( L, index );
+	return result;
+}
+
+
+// Get a lua string from a field
 static const char *
-luaRetrieveString( lua_State *L, int index, const char *name, const char *chosenAddressBookOption, const char *tableKey = NULL, int tableKeyIndex = NULL )
+luaGetStringFromField( lua_State *L, int index, const char *field )
 {
 	const char *result = NULL;
-
-	// Get table if specified
-	if ( tableKey && tableKeyIndex )
+	
+	// Get the field
+	lua_getfield( L, index, field );
+	if ( lua_isstring( L, -1 ) )
 	{
-		// If the options table exists
-		if ( ! lua_isnoneornil( L, tableKeyIndex ) && lua_istable( L, tableKeyIndex ) )
+		result = luaGetString( L, -1 );
+	}
+	else
+	{
+		if ( ! lua_isnoneornil( L, -1 ) )
 		{
-			// Options table exists, retrieve name key
-			lua_getfield( L, tableKeyIndex, tableKey );
-		}
-		// If the options.data field doesn't exist or or isn't a table throw an error.
-		if ( ! lua_isnoneornil( L, -1 ) && lua_istable( L, tableKeyIndex ) && ! lua_istable( L, -1 ) )
-		{
-			luaL_error( L, "'%s' data must be a table containing key/value pairs", chosenAddressBookOption );
+			luaL_error( L, "'%s' must be a string value", field );
 		}
 	}
+	
+	// Pop the field
+	lua_pop( L, 1 );
+	
+	return result;
+}
 
-	// Get field
-	if ( ! lua_isnoneornil( L, index ) )
+	
+// Get a lua bool from a field
+static bool
+luaGetBoolFromField( lua_State *L, int index, const char *field )
+{
+	bool result = false;
+	
+	// Get the field
+	lua_getfield( L, index, field );
+	if ( lua_isboolean( L, -1 ) )
 	{
-		// Options table exists, retrieve name key
-		lua_getfield( L, index, name );
+		result = luaGetBool( L, -1 );
 	}
-
-	// If the details table exists
-	if ( lua_istable( L, 2 ) && lua_isstring( L, -1 ) )
+	else
 	{
-		// Retrieve the string
-		result = lua_tostring( L, -1 );
-
-		lua_pop( L, 1 );
+		if ( ! lua_isnoneornil( L, -1 ) )
+		{
+			luaL_error( L, "'%s' must be a boolean value", field );
+		}
 	}
-	// If the value isn't a string, and it wasn't ommited, throw an error.
-	else if ( ! lua_isnoneornil( L, -1 ) && ! lua_isstring( L, -1 ) )
-	{
-		luaL_error( L, "'%s' passed to %s options table must be a string value", name, chosenAddressBookOption );
-	}
+	
+	// Pop the field
+	lua_pop( L, 1 );
 
 	return result;
 }
@@ -285,32 +280,34 @@ static int
 getContactOptions( lua_State *L, CoronaAddressBookDelegate *delegate, const char *viewType, const char *chosenAddressBookOption )
 {
 	// Only get the boolean values that we will be using for the chosen contact view
-
-	// Pick contact
-	if ( 0 == strcmp( kOptionPickContact, viewType ) )
+	if ( lua_istable( L, 2 ) )
 	{
-		// Get hideDetails bool from lua, then set it
-		delegate.shouldHideDetails = luaRetrieveBool( L, 2, "hideDetails", chosenAddressBookOption );
-		// Get performDefaultAction bool from lua, then set it
-		delegate.shouldPerformDefaultAction = luaRetrieveBool( L, 2, "performDefaultAction", chosenAddressBookOption );
-	}
-	// View contact
-	else if ( 0 == strcmp( kOptionViewContact, viewType ) )
-	{
-		// Get performDefaultAction bool from lua, then set it
-		delegate.shouldPerformDefaultAction = luaRetrieveBool( L, 2, "performDefaultAction", chosenAddressBookOption );
-		// Get isEditable bool from lua, then set it
-		delegate.shouldAllowContactEditing = luaRetrieveBool( L, 2, "isEditable", chosenAddressBookOption );
-	}
-	// Unknown contact
-	else if ( 0 == strcmp( kOptionUnknownContact, viewType ) )
-	{
-		// Get performDefaultAction bool from lua, then set it
-		delegate.shouldPerformDefaultAction = luaRetrieveBool( L, 2, "performDefaultAction", chosenAddressBookOption);
-		// Get shouldAllowActions bool from lua, then set it
-		delegate.shouldAllowActions = luaRetrieveBool( L, 2, "allowsActions", chosenAddressBookOption );
-		// Get shouldAllowAdding bool from lua, then set it
-		delegate.shouldAllowAdding = luaRetrieveBool( L, 2, "allowsAdding", chosenAddressBookOption );
+		// Pick contact
+		if ( 0 == strcmp( kOptionPickContact, viewType ) )
+		{
+			// Get hideDetails bool from lua, then set it
+			delegate.shouldHideDetails = luaGetBoolFromField( L, 2, "hideDetails" );
+			// Get performDefaultAction bool from lua, then set it
+			delegate.shouldPerformDefaultAction = luaGetBoolFromField( L, 2, "performDefaultAction" );
+		}
+		// View contact
+		else if ( 0 == strcmp( kOptionViewContact, viewType ) )
+		{
+			// Get performDefaultAction bool from lua, then set it
+			delegate.shouldPerformDefaultAction = luaGetBoolFromField( L, 2, "performDefaultAction" );
+			// Get isEditable bool from lua, then set it
+			delegate.shouldAllowContactEditing = luaGetBoolFromField( L, 2, "isEditable" );
+		}
+		// Unknown contact
+		else if ( 0 == strcmp( kOptionUnknownContact, viewType ) )
+		{
+			// Get performDefaultAction bool from lua, then set it
+			delegate.shouldPerformDefaultAction = luaGetBoolFromField( L, 2, "performDefaultAction" );
+			// Get shouldAllowActions bool from lua, then set it
+			delegate.shouldAllowActions = luaGetBoolFromField( L, 2, "allowsActions" );
+			// Get shouldAllowAdding bool from lua, then set it
+			delegate.shouldAllowAdding = luaGetBoolFromField( L, 2, "allowsAdding" );
+		}
 	}
     
 	return 0;
@@ -321,48 +318,48 @@ getContactOptions( lua_State *L, CoronaAddressBookDelegate *delegate, const char
 static int
 getContactFilters( lua_State *L, CoronaAddressBookDelegate *delegate, const char *chosenAddressBookOption )
 {
-	// Get filter array (if it is a table and is not ommitted or nil)
-	if ( ! lua_isnoneornil( L, 2 ) && lua_istable( L, 2 ) )
+	// Get filter array (if it is a table)
+	if ( lua_istable( L, 2 ) )
 	{
 		// Options table exists, retrieve name key
 		lua_getfield( L, 2, "filter" );
-	}
 
-	// If the filter table exists
-	if ( ! lua_isnoneornil( L, -1 ) && lua_istable( L, -1 ) )
-	{
-		// Get the number of defined filters from lua
-		int amountOfFiltersDefined = luaL_getn( L, -1 );
-
-		// Loop through the filter array
-		for ( int i = 1; i <= amountOfFiltersDefined; ++i )
+		// If the filter table exists
+		if ( lua_istable( L, -1 ) )
 		{
-			// Get the tables first value
-			lua_rawgeti( L, -1, i );
-            
-			// Assign the value to the display filters array, we pass -1 so we match C/C++'s convention of starting arrays at 0
-			NSString *currentFilter = [NSString stringWithUTF8String:lua_tostring( L, -1 )];
-            
-			// Add the filter to the contactDisplayFilters array
-			[delegate.contactDisplayFilters addObject:currentFilter];
+			// Get the number of defined filters from lua
+			int amountOfFiltersDefined = luaL_getn( L, -1 );
 
-			// Pop the current filter
+			// Loop through the filter array
+			for ( int i = 1; i <= amountOfFiltersDefined; ++i )
+			{
+				// Get the tables first value
+				lua_rawgeti( L, -1, i );
+				
+				// Assign the value to the display filters array, we pass -1 so we match C/C++'s convention of starting arrays at 0
+				NSString *currentFilter = [NSString stringWithUTF8String:lua_tostring( L, -1 )];
+				
+				// Add the filter to the contactDisplayFilters array
+				[delegate.contactDisplayFilters addObject:currentFilter];
+
+				// Pop the current filter
+				lua_pop( L, 1 );
+			}
+			
+			// Pop the options.filter table
 			lua_pop( L, 1 );
+		}
+
+		// If there is an options table & there is filter passed and the filter defined isn't a table
+		if ( lua_istable( L, 2 ) && ! lua_istable( L, -1 ) && ! lua_isnoneornil( L, -1 ) )
+		{
+			luaL_error( L, "'Filter' passed to %s options must be a table, and must contain strings identifiying which properties you wish to display", chosenAddressBookOption );
 		}
 	}
 
-	// If there is an options table & there is filter passed and the filter defined isn't a table
-	if ( lua_istable( L, 2 ) && ! lua_istable( L, -1 ) && ! lua_isnoneornil( L, -1 ) )
-	{
-		luaL_error( L, "'Filter' passed to %s options must be a table, and must contain strings identifiying which properties you wish to display", chosenAddressBookOption );
-	}
-		
-	// Pop the options.filter table
-	lua_pop( L, 1 );
-
 	return 0;
 }
-
+	
 
 // Helper function for setting contact details. Used in newContact and unknownContact
 static int
@@ -370,718 +367,727 @@ setContactDetails( lua_State *L, ABRecordRef person, const char *chosenAddressBo
 {
 	bool result = true;
 	CFErrorRef error = NULL;
-
+	
 	// Retrieve the pre-filled contact fields from lua (if any)
-	const char *contactFirstName = luaRetrieveString( L, -1, "firstName", chosenAddressBookOption, "data", 2 );
-	const char *contactMiddleName = luaRetrieveString( L, -1, "middleName", chosenAddressBookOption, "data", 2 );
-	const char *contactLastName = luaRetrieveString( L, -1, "lastName", chosenAddressBookOption, "data", 2 );
-	const char *contactOrganization = luaRetrieveString( L, -1, "organization", chosenAddressBookOption, "data", 2 );
-	const char *contactJobTitle = luaRetrieveString( L, -1, "jobTitle", chosenAddressBookOption, "data", 2 );
-	const char *contactBirthday = luaRetrieveString( L, -1, "birthday", chosenAddressBookOption, "data", 2 );
-	const char *contactPhoneticFirstName = luaRetrieveString( L, -1, "phoneticFirstName", chosenAddressBookOption, "data", 2 );
-	const char *contactPhoneticMiddleName = luaRetrieveString( L, -1, "phoneticMiddleName", chosenAddressBookOption, "data", 2 );
-	const char *contactPhoneticLastName = luaRetrieveString( L, -1, "phoneticLastName", chosenAddressBookOption, "data", 2 );
-	const char *contactPrefix = luaRetrieveString( L, -1, "prefix", chosenAddressBookOption, "data", 2 );
-	const char *contactSuffix = luaRetrieveString( L, -1, "suffix", chosenAddressBookOption, "data", 2 );
-	const char *contactNickname = luaRetrieveString( L, -1, "nickname", chosenAddressBookOption, "data", 2 );
-	// Phone Numbers
-	const char *contactPhoneIphone = luaRetrieveString( L, -1, "phoneIphone", chosenAddressBookOption, "data", 2 );
-	const char *contactPhoneMobile = luaRetrieveString( L, -1, "phoneMobile", chosenAddressBookOption, "data", 2 );
-	const char *contactPhoneMain = luaRetrieveString( L, -1, "phoneMain", chosenAddressBookOption, "data", 2 );
-	const char *contactPhoneHome = luaRetrieveString( L, -1, "phoneHome", chosenAddressBookOption, "data", 2 );
-	const char *contactPhoneWork = luaRetrieveString( L, -1, "phoneWork", chosenAddressBookOption, "data", 2 );
-	// Fax Numbers
-	const char *contactFaxHome = luaRetrieveString( L, -1, "faxHome", chosenAddressBookOption, "data", 2 );
-	const char *contactFaxWork = luaRetrieveString( L, -1, "faxWork", chosenAddressBookOption, "data", 2 );
-	const char *contactFaxOther = luaRetrieveString( L, -1, "faxOther", chosenAddressBookOption, "data", 2 );
-	// Pager
-	const char *contactPager = luaRetrieveString( L, -1, "pager", chosenAddressBookOption, "data", 2 );
-	// Email Addresses
-	const char *contactHomeEmailAddress = luaRetrieveString( L, -1, "homeEmail", chosenAddressBookOption, "data", 2 );
-	const char *contactWorkEmailAddress = luaRetrieveString( L, -1, "workEmail", chosenAddressBookOption, "data", 2 );
-	// Urls
-	const char *contactHomePageUrl = luaRetrieveString( L, -1, "homePageUrl", chosenAddressBookOption, "data", 2 );
-	const char *contactWorkUrl = luaRetrieveString( L, -1, "workUrl", chosenAddressBookOption, "data", 2 );
-	const char *contactHomeUrl = luaRetrieveString( L, -1, "homeUrl", chosenAddressBookOption, "data", 2 );
-	// People
-	const char *contactFather = luaRetrieveString( L, -1, "father", chosenAddressBookOption, "data", 2 );
-	const char *contactMother = luaRetrieveString( L, -1, "mother", chosenAddressBookOption, "data", 2 );
-	const char *contactParent = luaRetrieveString( L, -1, "parent", chosenAddressBookOption, "data", 2 );
-	const char *contactBrother = luaRetrieveString( L, -1, "brother", chosenAddressBookOption, "data", 2 );
-	const char *contactSister = luaRetrieveString( L, -1, "sister", chosenAddressBookOption, "data", 2 );
-	const char *contactChild = luaRetrieveString( L, -1, "child", chosenAddressBookOption, "data", 2 );
-	const char *contactFriend = luaRetrieveString( L, -1, "friend", chosenAddressBookOption, "data", 2 );
-	const char *contactSpouse = luaRetrieveString( L, -1, "spouse", chosenAddressBookOption, "data", 2 );
-	const char *contactPartner = luaRetrieveString( L, -1, "partner", chosenAddressBookOption, "data", 2 );
-	const char *contactAssistant = luaRetrieveString( L, -1, "assistant", chosenAddressBookOption, "data", 2 );
-	const char *contactManager = luaRetrieveString( L, -1, "manager", chosenAddressBookOption, "data", 2 );
-	// Addresses
-	const char *contactHomeStreet = luaRetrieveString( L, -1, "homeStreet", chosenAddressBookOption, "data", 2 );
-	const char *contactHomeCity = luaRetrieveString( L, -1, "homeCity", chosenAddressBookOption, "data", 2 );
-	const char *contactHomeState = luaRetrieveString( L, -1, "homeState", chosenAddressBookOption, "data", 2 );
-	const char *contactHomeZip = luaRetrieveString( L, -1, "homeZip", chosenAddressBookOption, "data", 2 );
-	const char *contactHomeCountry = luaRetrieveString( L, -1, "homeCountry", chosenAddressBookOption, "data", 2 );
-	const char *contactWorkStreet = luaRetrieveString( L, -1, "workStreet", chosenAddressBookOption, "data", 2 );
-	const char *contactWorkCity = luaRetrieveString( L, -1, "workCity", chosenAddressBookOption, "data", 2 );
-	const char *contactWorkState = luaRetrieveString( L, -1, "workState", chosenAddressBookOption, "data", 2 );
-	const char *contactWorkZip = luaRetrieveString( L, -1, "workZip", chosenAddressBookOption, "data", 2 );
-	const char *contactWorkCountry = luaRetrieveString( L, -1, "workCountry", chosenAddressBookOption, "data", 2 );
-	// Social Profiles
-	const char *contactSocialProfileFacebook = luaRetrieveString( L, -1, "socialFacebook", chosenAddressBookOption, "data", 2 );
-	const char *contactSocialProfileTwitter = luaRetrieveString( L, -1, "socialTwitter", chosenAddressBookOption, "data", 2 );
-	const char *contactSocialProfileFlickr = luaRetrieveString( L, -1, "socialFlickr", chosenAddressBookOption, "data", 2 );
-	const char *contactSocialProfileLinkedIn = luaRetrieveString( L, -1, "socialLinkedIn", chosenAddressBookOption, "data", 2 );
-	const char *contactSocialProfileMyspace = luaRetrieveString( L, -1, "socialMyspace", chosenAddressBookOption, "data", 2 );
-	const char *contactSocialProfileSinaWeibo = luaRetrieveString( L, -1, "socialSinaWeibo", chosenAddressBookOption, "data", 2 );
-	const char *contactSocialProfileGameCenter = luaRetrieveString( L, -1, "socialGameCenter", chosenAddressBookOption, "data", 2 );
-	// Instant Messaging Profiles
-	const char *contactInstantMessagingProfileAim = luaRetrieveString( L, -1, "instantMessagingAim", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileFacebook = luaRetrieveString( L, -1, "instantMessagingFacebook", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileGaduGadu = luaRetrieveString( L, -1, "instantMessagingGaduGadu", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileGoogleTalk = luaRetrieveString( L, -1, "instantMessagingGoogleTalk", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileICQ = luaRetrieveString( L, -1, "instantMessagingICQ", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileJabber = luaRetrieveString( L, -1, "instantMessagingJabber", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileMSN = luaRetrieveString( L, -1, "instantMessagingMSN", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileQQ = luaRetrieveString( L, -1, "instantMessagingQQ", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileSkype = luaRetrieveString( L, -1, "instantMessagingSkype", chosenAddressBookOption, "data", 2 );
-	const char *contactInstantMessagingProfileYahoo = luaRetrieveString( L, -1, "instantMessagingYahoo", chosenAddressBookOption, "data", 2 );
-	
-	// Pop the options.data table
-	lua_pop( L, 1 );
-	
-	// Create multi value references
-	ABMutableMultiValueRef personPhoneNumbers = ABMultiValueCreateMutable(kABMultiStringPropertyType);
-	ABMutableMultiValueRef personEmailAddresses = ABMultiValueCreateMutable(kABMultiStringPropertyType);
-	ABMutableMultiValueRef personUrls = ABMultiValueCreateMutable(kABMultiStringPropertyType);
-	ABMutableMultiValueRef personRelatedNames = ABMultiValueCreateMutable(kABMultiStringPropertyType);
-	ABMutableMultiValueRef personSocialProfiles = ABMultiValueCreateMutable(kABMultiDictionaryPropertyType);
-	ABMutableMultiValueRef personInstantMessagingProfiles = ABMultiValueCreateMutable(kABMultiStringPropertyType);
-	ABMutableMultiValueRef personAddresses = ABMultiValueCreateMutable(kABMultiDictionaryPropertyType);
-	NSMutableDictionary *personHomeAddressDictionary = [[NSMutableDictionary alloc] init];
-	NSMutableDictionary *personWorkAddressDictionary = [[NSMutableDictionary alloc] init];
-	
-	// Names + Other \\
+	if ( lua_istable( L, 2 ) )
+	{
+		// Get the "data" table
+		lua_getfield( L, 2, "data" );
 		
-	// First Name
-	if ( contactFirstName )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFirstName];
-		ABRecordSetValue(person, kABPersonFirstNameProperty, value, &error);
-	}
-	
-	// Middle Name
-	if ( contactMiddleName )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactMiddleName];
-		ABRecordSetValue(person, kABPersonMiddleNameProperty, value, &error);
-	}
-	
-	// Last Name
-	if ( contactLastName )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactLastName];
-		ABRecordSetValue(person, kABPersonLastNameProperty, value, &error);
-	}
-	
-	// Organization
-	if ( contactOrganization )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactOrganization];
-		ABRecordSetValue(person, kABPersonOrganizationProperty, value, &error);
-	}
-	
-	// Job Title
-	if ( contactJobTitle )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactJobTitle];
-		ABRecordSetValue(person, kABPersonJobTitleProperty, value, &error);
-	}
-	
-	// Prefix
-	if ( contactPrefix )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPrefix];
-		ABRecordSetValue(person, kABPersonPrefixProperty, value, &error);
-	}
-	
-	// Suffix
-	if ( contactSuffix )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSuffix];
-		ABRecordSetValue(person, kABPersonSuffixProperty, value, &error);
-	}
-	
-	// Nickname
-	if ( contactNickname )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactNickname];
-		ABRecordSetValue(person, kABPersonNicknameProperty, value, &error);
-	}
-	
-	// Phonetic First Name
-	if ( contactPhoneticFirstName )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneticFirstName];
-		ABRecordSetValue(person, kABPersonFirstNamePhoneticProperty, value, &error);
-	}
-	
-	// Phonetic Middle Name
-	if ( contactPhoneticMiddleName )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneticMiddleName];
-		ABRecordSetValue(person, kABPersonMiddleNamePhoneticProperty, value, &error);
-	}
-	
-	// Phonetic Last Name
-	if ( contactPhoneticLastName )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneticLastName];
-		ABRecordSetValue(person, kABPersonLastNamePhoneticProperty, value, &error);
-	}
-	
-	
-	//------- Related Names ---------\\
-	
-	// Father
-	if ( contactFather )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFather];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonFatherLabel, NULL);
-	}
-	
-	// Mother
-	if ( contactMother )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactMother];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonMotherLabel, NULL);
-	}
-	
-	// Parent
-	if ( contactParent )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactParent];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonParentLabel, NULL);
-	}
-	
-	// Brother
-	if ( contactBrother )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactBrother];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonBrotherLabel, NULL);
-	}
-	
-	// Sister
-	if ( contactSister )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSister];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonSisterLabel, NULL);
-	}
-	
-	// Child
-	if ( contactChild )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactChild];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonChildLabel, NULL);
-	}
-
-	// Friend
-	if ( contactFriend )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFriend];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonFriendLabel, NULL);
-	}
-
-	// Spouse
-	if ( contactSpouse )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSpouse];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonSpouseLabel, NULL);
-	}
-	
-	// Partner
-	if ( contactPartner )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPartner];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonPartnerLabel, NULL);
-	}
-	
-	// Assistant
-	if ( contactAssistant )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactAssistant];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonAssistantLabel, NULL);
-	}
-	
-	// Manager
-	if ( contactManager )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactManager];
-		ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonManagerLabel, NULL);
-	}
-	
-	// Birthday
-	if ( contactBirthday )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactBirthday];
-
-		NSError *dateError = nil;
-		NSDate *date = nil;
-		NSDataDetector *detector = [NSDataDetector dataDetectorWithTypes:NSTextCheckingTypeDate error:&dateError];
-		NSArray *matches = [detector matchesInString:value options:0 range:NSMakeRange(0, [value length])];
-		
-		// Get the date
-		for ( NSTextCheckingResult *match in matches )
+		if ( lua_istable( L, -1 ) )
 		{
-			date = match.date;
-			//NSLog( @"Got date: %@", match.date );
+			// Retrieve the pre-filled contact fields from lua (if any)
+			const char *contactFirstName = luaGetStringFromField( L, -1, "firstName" );
+			const char *contactMiddleName = luaGetStringFromField( L, -1, "middleName" );
+			const char *contactLastName = luaGetStringFromField( L, -1, "lastName" );
+			const char *contactOrganization = luaGetStringFromField( L, -1, "organization" );
+			const char *contactJobTitle = luaGetStringFromField( L, -1, "jobTitle" );
+			const char *contactBirthday = luaGetStringFromField( L, -1, "birthday" );
+			const char *contactPhoneticFirstName = luaGetStringFromField( L, -1, "phoneticFirstName" );
+			const char *contactPhoneticMiddleName = luaGetStringFromField( L, -1, "phoneticMiddleName" );
+			const char *contactPhoneticLastName = luaGetStringFromField( L, -1, "phoneticLastName" );
+			const char *contactPrefix = luaGetStringFromField( L, -1, "prefix" );
+			const char *contactSuffix = luaGetStringFromField( L, -1, "suffix" );
+			const char *contactNickname = luaGetStringFromField( L, -1, "nickname" );
+			// Phone Numbers
+			const char *contactPhoneIphone = luaGetStringFromField( L, -1, "phoneIphone" );
+			const char *contactPhoneMobile = luaGetStringFromField( L, -1, "phoneMobile" );
+			const char *contactPhoneMain = luaGetStringFromField( L, -1, "phoneMain" );
+			const char *contactPhoneHome = luaGetStringFromField( L, -1, "phoneHome" );
+			const char *contactPhoneWork = luaGetStringFromField( L, -1, "phoneWork" );
+			// Fax Numbers
+			const char *contactFaxHome = luaGetStringFromField( L, -1, "faxHome" );
+			const char *contactFaxWork = luaGetStringFromField( L, -1, "faxWork" );
+			const char *contactFaxOther = luaGetStringFromField( L, -1, "faxOther" );
+			// Pager
+			const char *contactPager = luaGetStringFromField( L, -1, "pager" );
+			// Email Addresses
+			const char *contactHomeEmailAddress = luaGetStringFromField( L, -1, "homeEmail" );
+			const char *contactWorkEmailAddress = luaGetStringFromField( L, -1, "workEmail" );
+			// Urls
+			const char *contactHomePageUrl = luaGetStringFromField( L, -1, "homePageUrl" );
+			const char *contactWorkUrl = luaGetStringFromField( L, -1, "workUrl" );
+			const char *contactHomeUrl = luaGetStringFromField( L, -1, "homeUrl" );
+			// People
+			const char *contactFather = luaGetStringFromField( L, -1, "father" );
+			const char *contactMother = luaGetStringFromField( L, -1, "mother" );
+			const char *contactParent = luaGetStringFromField( L, -1, "parent" );
+			const char *contactBrother = luaGetStringFromField( L, -1, "brother" );
+			const char *contactSister = luaGetStringFromField( L, -1, "sister" );
+			const char *contactChild = luaGetStringFromField( L, -1, "child" );
+			const char *contactFriend = luaGetStringFromField( L, -1, "friend" );
+			const char *contactSpouse = luaGetStringFromField( L, -1, "spouse" );
+			const char *contactPartner = luaGetStringFromField( L, -1, "partner" );
+			const char *contactAssistant = luaGetStringFromField( L, -1, "assistant" );
+			const char *contactManager = luaGetStringFromField( L, -1, "manager" );
+			// Addresses
+			const char *contactHomeStreet = luaGetStringFromField( L, -1, "homeStreet" );
+			const char *contactHomeCity = luaGetStringFromField( L, -1, "homeCity" );
+			const char *contactHomeState = luaGetStringFromField( L, -1, "homeState" );
+			const char *contactHomeZip = luaGetStringFromField( L, -1, "homeZip" );
+			const char *contactHomeCountry = luaGetStringFromField( L, -1, "homeCountry" );
+			const char *contactWorkStreet = luaGetStringFromField( L, -1, "workStreet" );
+			const char *contactWorkCity = luaGetStringFromField( L, -1, "workCity" );
+			const char *contactWorkState = luaGetStringFromField( L, -1, "workState" );
+			const char *contactWorkZip = luaGetStringFromField( L, -1, "workZip" );
+			const char *contactWorkCountry = luaGetStringFromField( L, -1, "workCountry" );
+			// Social Profiles
+			const char *contactSocialProfileFacebook = luaGetStringFromField( L, -1, "socialFacebook" );
+			const char *contactSocialProfileTwitter = luaGetStringFromField( L, -1, "socialTwitter" );
+			const char *contactSocialProfileFlickr = luaGetStringFromField( L, -1, "socialFlickr" );
+			const char *contactSocialProfileLinkedIn = luaGetStringFromField( L, -1, "socialLinkedIn" );
+			const char *contactSocialProfileMyspace = luaGetStringFromField( L, -1, "socialMyspace" );
+			const char *contactSocialProfileSinaWeibo = luaGetStringFromField( L, -1, "socialSinaWeibo" );
+			const char *contactSocialProfileGameCenter = luaGetStringFromField( L, -1, "socialGameCenter" );
+			// Instant Messaging Profiles
+			const char *contactInstantMessagingProfileAim = luaGetStringFromField( L, -1, "instantMessagingAim" );
+			const char *contactInstantMessagingProfileFacebook = luaGetStringFromField( L, -1, "instantMessagingFacebook" );
+			const char *contactInstantMessagingProfileGaduGadu = luaGetStringFromField( L, -1, "instantMessagingGaduGadu" );
+			const char *contactInstantMessagingProfileGoogleTalk = luaGetStringFromField( L, -1, "instantMessagingGoogleTalk" );
+			const char *contactInstantMessagingProfileICQ = luaGetStringFromField( L, -1, "instantMessagingICQ" );
+			const char *contactInstantMessagingProfileJabber = luaGetStringFromField( L, -1, "instantMessagingJabber" );
+			const char *contactInstantMessagingProfileMSN = luaGetStringFromField( L, -1, "instantMessagingMSN" );
+			const char *contactInstantMessagingProfileQQ = luaGetStringFromField( L, -1, "instantMessagingQQ" );
+			const char *contactInstantMessagingProfileSkype = luaGetStringFromField( L, -1, "instantMessagingSkype" );
+			const char *contactInstantMessagingProfileYahoo = luaGetStringFromField( L, -1, "instantMessagingYahoo" );
+			
+			// Pop the data table
+			lua_pop( L, 1 );
+			
+			// Create multi value references
+			ABMutableMultiValueRef personPhoneNumbers = ABMultiValueCreateMutable(kABMultiStringPropertyType);
+			ABMutableMultiValueRef personEmailAddresses = ABMultiValueCreateMutable(kABMultiStringPropertyType);
+			ABMutableMultiValueRef personUrls = ABMultiValueCreateMutable(kABMultiStringPropertyType);
+			ABMutableMultiValueRef personRelatedNames = ABMultiValueCreateMutable(kABMultiStringPropertyType);
+			ABMutableMultiValueRef personSocialProfiles = ABMultiValueCreateMutable(kABMultiDictionaryPropertyType);
+			ABMutableMultiValueRef personInstantMessagingProfiles = ABMultiValueCreateMutable(kABMultiStringPropertyType);
+			ABMutableMultiValueRef personAddresses = ABMultiValueCreateMutable(kABMultiDictionaryPropertyType);
+			NSMutableDictionary *personHomeAddressDictionary = [[NSMutableDictionary alloc] init];
+			NSMutableDictionary *personWorkAddressDictionary = [[NSMutableDictionary alloc] init];
+			
+			// Names + Other \\
+				
+			// First Name
+			if ( contactFirstName )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFirstName];
+				ABRecordSetValue(person, kABPersonFirstNameProperty, value, &error);
+			}
+			
+			// Middle Name
+			if ( contactMiddleName )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactMiddleName];
+				ABRecordSetValue(person, kABPersonMiddleNameProperty, value, &error);
+			}
+			
+			// Last Name
+			if ( contactLastName )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactLastName];
+				ABRecordSetValue(person, kABPersonLastNameProperty, value, &error);
+			}
+			
+			// Organization
+			if ( contactOrganization )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactOrganization];
+				ABRecordSetValue(person, kABPersonOrganizationProperty, value, &error);
+			}
+			
+			// Job Title
+			if ( contactJobTitle )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactJobTitle];
+				ABRecordSetValue(person, kABPersonJobTitleProperty, value, &error);
+			}
+			
+			// Prefix
+			if ( contactPrefix )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPrefix];
+				ABRecordSetValue(person, kABPersonPrefixProperty, value, &error);
+			}
+			
+			// Suffix
+			if ( contactSuffix )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSuffix];
+				ABRecordSetValue(person, kABPersonSuffixProperty, value, &error);
+			}
+			
+			// Nickname
+			if ( contactNickname )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactNickname];
+				ABRecordSetValue(person, kABPersonNicknameProperty, value, &error);
+			}
+			
+			// Phonetic First Name
+			if ( contactPhoneticFirstName )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneticFirstName];
+				ABRecordSetValue(person, kABPersonFirstNamePhoneticProperty, value, &error);
+			}
+			
+			// Phonetic Middle Name
+			if ( contactPhoneticMiddleName )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneticMiddleName];
+				ABRecordSetValue(person, kABPersonMiddleNamePhoneticProperty, value, &error);
+			}
+			
+			// Phonetic Last Name
+			if ( contactPhoneticLastName )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneticLastName];
+				ABRecordSetValue(person, kABPersonLastNamePhoneticProperty, value, &error);
+			}
+			
+			
+			//------- Related Names ---------\\
+			
+			// Father
+			if ( contactFather )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFather];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonFatherLabel, NULL);
+			}
+			
+			// Mother
+			if ( contactMother )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactMother];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonMotherLabel, NULL);
+			}
+			
+			// Parent
+			if ( contactParent )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactParent];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonParentLabel, NULL);
+			}
+			
+			// Brother
+			if ( contactBrother )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactBrother];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonBrotherLabel, NULL);
+			}
+			
+			// Sister
+			if ( contactSister )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSister];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonSisterLabel, NULL);
+			}
+			
+			// Child
+			if ( contactChild )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactChild];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonChildLabel, NULL);
+			}
+
+			// Friend
+			if ( contactFriend )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFriend];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonFriendLabel, NULL);
+			}
+
+			// Spouse
+			if ( contactSpouse )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSpouse];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonSpouseLabel, NULL);
+			}
+			
+			// Partner
+			if ( contactPartner )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPartner];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonPartnerLabel, NULL);
+			}
+			
+			// Assistant
+			if ( contactAssistant )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactAssistant];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonAssistantLabel, NULL);
+			}
+			
+			// Manager
+			if ( contactManager )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactManager];
+				ABMultiValueAddValueAndLabel(personRelatedNames, value, kABPersonManagerLabel, NULL);
+			}
+			
+			// Birthday
+			if ( contactBirthday )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactBirthday];
+
+				NSError *dateError = nil;
+				NSDate *date = nil;
+				NSDataDetector *detector = [NSDataDetector dataDetectorWithTypes:NSTextCheckingTypeDate error:&dateError];
+				NSArray *matches = [detector matchesInString:value options:0 range:NSMakeRange(0, [value length])];
+				
+				// Get the date
+				for ( NSTextCheckingResult *match in matches )
+				{
+					date = match.date;
+					//NSLog( @"Got date: %@", match.date );
+				}
+				
+				if ( date )
+				{
+					// Set the value
+					ABRecordSetValue(person, kABPersonBirthdayProperty, (CFDateRef)date, &error);
+				}
+				else
+				{
+					NSLog( @"Error: %@", dateError );
+				}
+			}
+			
+			
+			//------- Addresses ---------\\
+
+			// Home Street
+			if ( contactHomeStreet )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactHomeStreet];
+				[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStreetKey];
+			}
+			
+			// Home City
+			if ( contactHomeCity )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactHomeCity];
+				[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCityKey];
+			}
+			
+			// Home State
+			if ( contactHomeState )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactHomeState];
+				[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStateKey];
+			}
+			
+			// Home Zip
+			if ( contactHomeZip )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactHomeZip];
+				[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressZIPKey];
+			}
+			
+			// Home Country
+			if ( contactHomeCountry )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactHomeCountry];
+				[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCountryKey];
+			}
+			
+			// Work Street
+			if ( contactWorkStreet )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactWorkStreet];
+				[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStreetKey];
+			}
+			
+			// Work City
+			if ( contactWorkCity )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactWorkCity];
+				[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCityKey];
+			}
+			
+			// Work State
+			if ( contactWorkState )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactWorkState];
+				[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStateKey];
+			}
+			
+			// Work Zip
+			if ( contactWorkZip )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactWorkZip];
+				[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressZIPKey];
+			}
+			
+			// Work Country
+			if ( contactWorkCountry )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactWorkCountry];
+				[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCountryKey];
+			}
+
+
+			//------- Phone Numbers ---------\\
+
+			
+			// Phone: iPhone
+			if ( contactPhoneIphone )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneIphone];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneIPhoneLabel, NULL);
+			}
+			
+			// Phone: Mobile
+			if ( contactPhoneMobile )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneMobile];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneMobileLabel, NULL);
+			}
+			
+			// Phone: Main
+			if ( contactPhoneMain )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneMain];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneMainLabel, NULL);
+			}	
+			
+			// Phone: Home
+			if ( contactPhoneHome )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneHome];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABHomeLabel, NULL);
+			}
+
+			// Phone: Work
+			if ( contactPhoneWork )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneWork];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABWorkLabel, NULL);
+			}
+
+			
+			//------- Fax Numbers ---------\\
+			
+			// Fax: Home
+			if ( contactFaxHome )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFaxHome ];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneHomeFAXLabel, NULL);
+			}
+			
+			// Fax: Work
+			if ( contactFaxWork )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFaxWork ];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneWorkFAXLabel, NULL);
+			}
+			
+			// Fax: Other
+			if ( contactFaxOther )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFaxOther ];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneOtherFAXLabel, NULL);
+			}
+			
+			
+			//------- Pager ---------\\
+			
+			// Pager
+			if ( contactPager )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPager ];
+				ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhonePagerLabel, NULL);
+			}
+			
+			
+			//------- Email Addresses ---------\\
+			
+
+			// Home email address
+			if ( contactHomeEmailAddress )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactHomeEmailAddress];
+				ABMultiValueAddValueAndLabel(personEmailAddresses, value, kABHomeLabel, NULL);
+			}
+
+			// Work email address
+			if ( contactWorkEmailAddress )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactWorkEmailAddress];
+				ABMultiValueAddValueAndLabel(personEmailAddresses, value, kABWorkLabel, NULL);
+			}
+			
+			
+			//------- Urls ---------\\
+			
+			// Home Page Url
+			if ( contactHomePageUrl )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactHomePageUrl];
+				ABMultiValueAddValueAndLabel(personUrls, value, kABPersonHomePageLabel, NULL);
+			}
+			
+			// Home URL
+			if ( contactHomeUrl )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactHomeUrl];
+				ABMultiValueAddValueAndLabel(personUrls, value, kABHomeLabel, NULL);
+			}
+			
+			// Work URL
+			if ( contactWorkUrl )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactWorkUrl];
+				ABMultiValueAddValueAndLabel(personUrls, value, kABWorkLabel, NULL);
+			}
+			
+			//------- Instant Messaging Profiles ---------\\
+			
+			// Aim
+			if ( contactInstantMessagingProfileAim )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileAim];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceAIM, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceAIM, NULL);
+			}
+			
+			// Facebook
+			if ( contactInstantMessagingProfileFacebook )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileFacebook];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceFacebook, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceFacebook, NULL);
+			}
+			
+			// Gadu Gadu
+			if ( contactInstantMessagingProfileGaduGadu )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileGaduGadu];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceGaduGadu, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceGaduGadu, NULL);
+			}
+			
+			// Google Talk
+			if ( contactInstantMessagingProfileGoogleTalk )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileGoogleTalk];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceGoogleTalk, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceGoogleTalk, NULL);
+			}
+			
+			// ICQ
+			if ( contactInstantMessagingProfileICQ )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileICQ];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceICQ, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceICQ, NULL);
+			}
+			
+			// Jabber
+			if ( contactInstantMessagingProfileJabber )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileJabber];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceJabber, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceJabber, NULL);
+			}
+			
+			// MSN
+			if ( contactInstantMessagingProfileMSN )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileMSN];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceMSN, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceMSN, NULL);
+			}
+			
+			// QQ
+			if ( contactInstantMessagingProfileQQ )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileQQ];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceQQ, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceQQ, NULL);
+			}
+			
+			// Skype
+			if ( contactInstantMessagingProfileSkype )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileSkype];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceSkype, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceSkype, NULL);
+			}
+			
+			// Yahoo
+			if ( contactInstantMessagingProfileYahoo )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileYahoo];
+				ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																			  (NSString *)kABPersonInstantMessageServiceYahoo, kABPersonInstantMessageServiceKey,
+																			  value, kABPersonInstantMessageUsernameKey,
+																			  nil], kABPersonInstantMessageServiceYahoo, NULL);
+			}
+			
+			
+			//------- Social Profiles ---------\\
+			
+			// Facebook
+			if ( contactSocialProfileFacebook )
+			{
+				NSString *value = [NSString stringWithUTF8String:contactSocialProfileFacebook];
+				ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																	(NSString *)kABPersonSocialProfileServiceFacebook, kABPersonSocialProfileServiceKey,
+																	value, kABPersonSocialProfileUsernameKey,
+																	nil], kABPersonSocialProfileServiceFacebook, NULL);
+			}
+			
+			// Twitter
+			if ( contactSocialProfileTwitter )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileTwitter];
+				ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																	(NSString *)kABPersonSocialProfileServiceTwitter, kABPersonSocialProfileServiceKey,
+																	value, kABPersonSocialProfileUsernameKey,
+																	nil], kABPersonSocialProfileServiceTwitter, NULL);
+			}
+			
+			// Flickr
+			if ( contactSocialProfileFlickr )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileFlickr];
+				ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																	(NSString *)kABPersonSocialProfileServiceFlickr, kABPersonSocialProfileServiceKey,
+																	value, kABPersonSocialProfileUsernameKey,
+																	nil], kABPersonSocialProfileServiceFlickr, NULL);
+			}
+			
+			// LinkedIn
+			if ( contactSocialProfileLinkedIn )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileLinkedIn];
+				ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																	(NSString *)kABPersonSocialProfileServiceLinkedIn, kABPersonSocialProfileServiceKey,
+																	value, kABPersonSocialProfileUsernameKey,
+																	nil], kABPersonSocialProfileServiceLinkedIn, NULL);
+			}
+			
+			// Myspace
+			if ( contactSocialProfileMyspace )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileMyspace];
+				ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																	(NSString *)kABPersonSocialProfileServiceMyspace, kABPersonSocialProfileServiceKey,
+																	value, kABPersonSocialProfileUsernameKey,
+																	nil], kABPersonSocialProfileServiceMyspace, NULL);
+			}
+			
+			// Sina Weibo
+			if ( contactSocialProfileSinaWeibo )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileSinaWeibo];
+				ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																	(NSString *)kABPersonSocialProfileServiceSinaWeibo, kABPersonSocialProfileServiceKey,
+																	value, kABPersonSocialProfileUsernameKey,
+																	nil], kABPersonSocialProfileServiceSinaWeibo, NULL);
+			}
+			
+			// Game Center
+			if ( contactSocialProfileGameCenter )
+			{
+				CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileGameCenter];
+				ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
+																	(NSString *)kABPersonSocialProfileServiceGameCenter, kABPersonSocialProfileServiceKey,
+																	value, kABPersonSocialProfileUsernameKey,
+																	nil], kABPersonSocialProfileServiceGameCenter, NULL);
+			}
+			
+
+			//------- ! Set Values to New Contact Form ! ---------\\
+			
+			
+			// Set Person Phone Numbers
+			if ( ABMultiValueGetCount(personPhoneNumbers) >= 1 )
+			{
+				ABRecordSetValue(person, kABPersonPhoneProperty, personPhoneNumbers, &error);
+			}
+			// Set Person Email Addresses
+			if ( ABMultiValueGetCount(personEmailAddresses) >= 1 )
+			{
+				ABRecordSetValue(person, kABPersonEmailProperty, personEmailAddresses, &error);
+			}
+			// Set Person Url's
+			if ( ABMultiValueGetCount(personUrls) >= 1 )
+			{
+				ABRecordSetValue(person, kABPersonURLProperty, personUrls, &error);
+			}
+			// Set Person Addresses
+			if ( [personHomeAddressDictionary count] >= 1 || [personWorkAddressDictionary count] >= 1 )
+			{
+				if ( [personHomeAddressDictionary count] >= 1 )
+				{
+					ABMultiValueAddValueAndLabel(personAddresses, personHomeAddressDictionary, kABHomeLabel, NULL);
+				}
+				if ( [personWorkAddressDictionary count] >= 1 )
+				{
+					ABMultiValueAddValueAndLabel(personAddresses, personWorkAddressDictionary, kABWorkLabel, NULL);
+				}
+				ABRecordSetValue(person, kABPersonAddressProperty, personAddresses, &error);
+			}
+			// Set Person Releated People
+			if ( ABMultiValueGetCount(personRelatedNames) >= 1 )
+			{
+				ABRecordSetValue(person, kABPersonRelatedNamesProperty, personRelatedNames, &error);
+			}
+			// Set Person Phone Social Profiles
+			if ( ABMultiValueGetCount(personSocialProfiles) >= 1 )
+			{
+				ABRecordSetValue(person, kABPersonSocialProfileProperty, personSocialProfiles, &error);
+			}
+			// Set Person Instant Messaging Profiles
+			if ( ABMultiValueGetCount(personInstantMessagingProfiles) >= 1 )
+			{
+				ABRecordSetValue(person, kABPersonInstantMessageProperty, personInstantMessagingProfiles, &error);
+			}
+			
+			
+			// Error
+			if ( error )
+			{
+				NSLog( @"Address Book: Adding details failed %@", error );
+				result = false;
+			}
+
+			// Cleanup
+			CFRelease( personPhoneNumbers );
+			CFRelease( personEmailAddresses );
+			CFRelease( personUrls );
+			CFRelease( personAddresses );
+			CFRelease( personRelatedNames );
+			CFRelease( personSocialProfiles );
+			CFRelease( personInstantMessagingProfiles );
+			[personHomeAddressDictionary release];
+			personHomeAddressDictionary = nil;
+			[personWorkAddressDictionary release];
+			personWorkAddressDictionary = nil;
 		}
-		
-		if ( date )
-		{
-			// Set the value
-			ABRecordSetValue(person, kABPersonBirthdayProperty, (CFDateRef)date, &error);
-		}
-		else
-		{
-			NSLog( @"Error: %@", dateError );
-		}
 	}
-	
-	
-	//------- Addresses ---------\\
-
-	// Home Street
-	if ( contactHomeStreet )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactHomeStreet];
-		[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStreetKey];
-	}
-	
-	// Home City
-	if ( contactHomeCity )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactHomeCity];
-		[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCityKey];
-	}
-	
-	// Home State
-	if ( contactHomeState )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactHomeState];
-		[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStateKey];
-	}
-	
-	// Home Zip
-	if ( contactHomeZip )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactHomeZip];
-		[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressZIPKey];
-	}
-	
-	// Home Country
-	if ( contactHomeCountry )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactHomeCountry];
-		[personHomeAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCountryKey];
-	}
-	
-	// Work Street
-	if ( contactWorkStreet )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactWorkStreet];
-		[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStreetKey];
-	}
-	
-	// Work City
-	if ( contactWorkCity )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactWorkCity];
-		[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCityKey];
-	}
-	
-	// Work State
-	if ( contactWorkState )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactWorkState];
-		[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressStateKey];
-	}
-	
-	// Work Zip
-	if ( contactWorkZip )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactWorkZip];
-		[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressZIPKey];
-	}
-	
-	// Work Country
-	if ( contactWorkCountry )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactWorkCountry];
-		[personWorkAddressDictionary setObject:value forKey:(NSString *) kABPersonAddressCountryKey];
-	}
-
-
-	//------- Phone Numbers ---------\\
-
-	
-	// Phone: iPhone
-	if ( contactPhoneIphone )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneIphone];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneIPhoneLabel, NULL);
-	}
-	
-	// Phone: Mobile
-	if ( contactPhoneMobile )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneMobile];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneMobileLabel, NULL);
-	}
-	
-	// Phone: Main
-	if ( contactPhoneMain )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneMain];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneMainLabel, NULL);
-	}	
-	
-	// Phone: Home
-	if ( contactPhoneHome )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneHome];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABHomeLabel, NULL);
-	}
-
-	// Phone: Work
-	if ( contactPhoneWork )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPhoneWork];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABWorkLabel, NULL);
-	}
-
-	
-	//------- Fax Numbers ---------\\
-	
-	// Fax: Home
-	if ( contactFaxHome )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFaxHome ];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneHomeFAXLabel, NULL);
-	}
-	
-	// Fax: Work
-	if ( contactFaxWork )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFaxWork ];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneWorkFAXLabel, NULL);
-	}
-	
-	// Fax: Other
-	if ( contactFaxOther )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactFaxOther ];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhoneOtherFAXLabel, NULL);
-	}
-	
-	
-	//------- Pager ---------\\
-	
-	// Pager
-	if ( contactPager )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactPager ];
-		ABMultiValueAddValueAndLabel(personPhoneNumbers, value, kABPersonPhonePagerLabel, NULL);
-	}
-	
-	
-	//------- Email Addresses ---------\\
-	
-
-	// Home email address
-	if ( contactHomeEmailAddress )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactHomeEmailAddress];
-		ABMultiValueAddValueAndLabel(personEmailAddresses, value, kABHomeLabel, NULL);
-	}
-
-	// Work email address
-	if ( contactWorkEmailAddress )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactWorkEmailAddress];
-		ABMultiValueAddValueAndLabel(personEmailAddresses, value, kABWorkLabel, NULL);
-	}
-	
-	
-	//------- Urls ---------\\
-	
-	// Home Page Url
-	if ( contactHomePageUrl )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactHomePageUrl];
-		ABMultiValueAddValueAndLabel(personUrls, value, kABPersonHomePageLabel, NULL);
-	}
-	
-	// Home URL
-	if ( contactHomeUrl )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactHomeUrl];
-		ABMultiValueAddValueAndLabel(personUrls, value, kABHomeLabel, NULL);
-	}
-	
-	// Work URL
-	if ( contactWorkUrl )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactWorkUrl];
-		ABMultiValueAddValueAndLabel(personUrls, value, kABWorkLabel, NULL);
-	}
-	
-	//------- Instant Messaging Profiles ---------\\
-	
-	// Aim
-	if ( contactInstantMessagingProfileAim )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileAim];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceAIM, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceAIM, NULL);
-	}
-	
-	// Facebook
-	if ( contactInstantMessagingProfileFacebook )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileFacebook];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceFacebook, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceFacebook, NULL);
-	}
-	
-	// Gadu Gadu
-	if ( contactInstantMessagingProfileGaduGadu )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileGaduGadu];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceGaduGadu, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceGaduGadu, NULL);
-	}
-	
-	// Google Talk
-	if ( contactInstantMessagingProfileGoogleTalk )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileGoogleTalk];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceGoogleTalk, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceGoogleTalk, NULL);
-	}
-	
-	// ICQ
-	if ( contactInstantMessagingProfileICQ )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileICQ];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceICQ, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceICQ, NULL);
-	}
-	
-	// Jabber
-	if ( contactInstantMessagingProfileJabber )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileJabber];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceJabber, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceJabber, NULL);
-	}
-	
-	// MSN
-	if ( contactInstantMessagingProfileMSN )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileMSN];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceMSN, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceMSN, NULL);
-	}
-	
-	// QQ
-	if ( contactInstantMessagingProfileQQ )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileQQ];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceQQ, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceQQ, NULL);
-	}
-	
-	// Skype
-	if ( contactInstantMessagingProfileSkype )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileSkype];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceSkype, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceSkype, NULL);
-	}
-	
-	// Yahoo
-	if ( contactInstantMessagingProfileYahoo )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactInstantMessagingProfileYahoo];
-		ABMultiValueAddValueAndLabel(personInstantMessagingProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-																	  (NSString *)kABPersonInstantMessageServiceYahoo, kABPersonInstantMessageServiceKey,
-																	  value, kABPersonInstantMessageUsernameKey,
-																	  nil], kABPersonInstantMessageServiceYahoo, NULL);
-	}
-	
-	
-	//------- Social Profiles ---------\\
-	
-	// Facebook
-	if ( contactSocialProfileFacebook )
-	{
-		NSString *value = [NSString stringWithUTF8String:contactSocialProfileFacebook];
-		ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-															(NSString *)kABPersonSocialProfileServiceFacebook, kABPersonSocialProfileServiceKey,
-															value, kABPersonSocialProfileUsernameKey,
-															nil], kABPersonSocialProfileServiceFacebook, NULL);
-	}
-	
-	// Twitter
-	if ( contactSocialProfileTwitter )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileTwitter];
-		ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-															(NSString *)kABPersonSocialProfileServiceTwitter, kABPersonSocialProfileServiceKey,
-															value, kABPersonSocialProfileUsernameKey,
-															nil], kABPersonSocialProfileServiceTwitter, NULL);
-	}
-	
-	// Flickr
-	if ( contactSocialProfileFlickr )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileFlickr];
-		ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-															(NSString *)kABPersonSocialProfileServiceFlickr, kABPersonSocialProfileServiceKey,
-															value, kABPersonSocialProfileUsernameKey,
-															nil], kABPersonSocialProfileServiceFlickr, NULL);
-	}
-	
-	// LinkedIn
-	if ( contactSocialProfileLinkedIn )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileLinkedIn];
-		ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-															(NSString *)kABPersonSocialProfileServiceLinkedIn, kABPersonSocialProfileServiceKey,
-															value, kABPersonSocialProfileUsernameKey,
-															nil], kABPersonSocialProfileServiceLinkedIn, NULL);
-	}
-	
-	// Myspace
-	if ( contactSocialProfileMyspace )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileMyspace];
-		ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-															(NSString *)kABPersonSocialProfileServiceMyspace, kABPersonSocialProfileServiceKey,
-															value, kABPersonSocialProfileUsernameKey,
-															nil], kABPersonSocialProfileServiceMyspace, NULL);
-	}
-	
-	// Sina Weibo
-	if ( contactSocialProfileSinaWeibo )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileSinaWeibo];
-		ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-															(NSString *)kABPersonSocialProfileServiceSinaWeibo, kABPersonSocialProfileServiceKey,
-															value, kABPersonSocialProfileUsernameKey,
-															nil], kABPersonSocialProfileServiceSinaWeibo, NULL);
-	}
-	
-	// Game Center
-	if ( contactSocialProfileGameCenter )
-	{
-		CFStringRef value = (CFStringRef)[NSString stringWithUTF8String:contactSocialProfileGameCenter];
-		ABMultiValueAddValueAndLabel(personSocialProfiles, [NSDictionary dictionaryWithObjectsAndKeys:
-															(NSString *)kABPersonSocialProfileServiceGameCenter, kABPersonSocialProfileServiceKey,
-															value, kABPersonSocialProfileUsernameKey,
-															nil], kABPersonSocialProfileServiceGameCenter, NULL);
-	}
-	
-
-	//------- ! Set Values to New Contact Form ! ---------\\
-	
-	
-	// Set Person Phone Numbers
-	if ( ABMultiValueGetCount(personPhoneNumbers) >= 1 )
-	{
-		ABRecordSetValue(person, kABPersonPhoneProperty, personPhoneNumbers, &error);
-	}
-	// Set Person Email Addresses
-	if ( ABMultiValueGetCount(personEmailAddresses) >= 1 )
-	{
-		ABRecordSetValue(person, kABPersonEmailProperty, personEmailAddresses, &error);
-	}
-	// Set Person Url's
-	if ( ABMultiValueGetCount(personUrls) >= 1 )
-	{
-		ABRecordSetValue(person, kABPersonURLProperty, personUrls, &error);
-	}
-	// Set Person Addresses
-	if ( [personHomeAddressDictionary count] >= 1 || [personWorkAddressDictionary count] >= 1 )
-	{
-		if ( [personHomeAddressDictionary count] >= 1 )
-		{
-			ABMultiValueAddValueAndLabel(personAddresses, personHomeAddressDictionary, kABHomeLabel, NULL);
-		}
-		if ( [personWorkAddressDictionary count] >= 1 )
-		{
-			ABMultiValueAddValueAndLabel(personAddresses, personWorkAddressDictionary, kABWorkLabel, NULL);
-		}
-		ABRecordSetValue(person, kABPersonAddressProperty, personAddresses, &error);
-	}
-	// Set Person Releated People
-	if ( ABMultiValueGetCount(personRelatedNames) >= 1 )
-	{
-		ABRecordSetValue(person, kABPersonRelatedNamesProperty, personRelatedNames, &error);
-	}
-	// Set Person Phone Social Profiles
-	if ( ABMultiValueGetCount(personSocialProfiles) >= 1 )
-	{
-		ABRecordSetValue(person, kABPersonSocialProfileProperty, personSocialProfiles, &error);
-	}
-	// Set Person Instant Messaging Profiles
-	if ( ABMultiValueGetCount(personInstantMessagingProfiles) >= 1 )
-	{
-		ABRecordSetValue(person, kABPersonInstantMessageProperty, personInstantMessagingProfiles, &error);
-	}
-	
-	
-	// Error
-	if ( error )
-	{
-		NSLog( @"Address Book: Adding details failed %@", error );
-		result = false;
-	}
-
-	// Cleanup
-	CFRelease( personPhoneNumbers );
-	CFRelease( personEmailAddresses );
-	CFRelease( personUrls );
-	CFRelease( personAddresses );
-	CFRelease( personRelatedNames );
-	CFRelease( personSocialProfiles );
-	CFRelease( personInstantMessagingProfiles );
-	[personHomeAddressDictionary release];
-	personHomeAddressDictionary = nil;
-	[personWorkAddressDictionary release];
-	personWorkAddressDictionary = nil;
 
 	return result;
 }
-
 
 // Show contact picker
 static int
@@ -1192,6 +1198,9 @@ viewContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 
 			// Check the string
 			requestedPersonName = luaL_checkstring( L, -1 );
+			
+			// Pop the name field
+			lua_pop( L, 1 );
 		}
 		// They key was omitted, throw error
 		else
@@ -1211,9 +1220,6 @@ viewContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 	{
 		//Persons name to search for
 		CFStringRef searchForName = (CFStringRef)[NSString stringWithUTF8String:requestedPersonName];
-
-		// Pop the requested name
-		lua_pop( L, 1 );
 
 		//Message to show if contact not found
 		NSString *contactNotFound = [NSString stringWithFormat:@"%@ %@ %@", @"Could not find '", searchForName, @"' in the Contacts application"];
@@ -1243,15 +1249,20 @@ viewContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 			// Items to display
 			NSNumber *propertiesPersonPhone = [[NSNumber alloc] initWithInt:(int)kABPersonPhoneProperty];
 			NSNumber *propertiesPersonEmail = [[NSNumber alloc] initWithInt:(int)kABPersonEmailProperty];
+			NSNumber *propertiesPersonUrl = [[NSNumber alloc] initWithInt:(int)kABPersonURLProperty];
 			NSNumber *propertiesPersonBirthday = [[NSNumber alloc] initWithInt:(int)kABPersonBirthdayProperty];
-
+			NSNumber *propertiesPersonRelatedNames = [[NSNumber alloc] initWithInt:(int)kABPersonRelatedNamesProperty];
+			NSNumber *propertiesPersonAddress = [[NSNumber alloc] initWithInt:(int)kABPersonAddressProperty];
+			NSNumber *propertiesPersonSocialProfile = [[NSNumber alloc] initWithInt:(int)kABPersonSocialProfileProperty];
+			NSNumber *propertiesPersonInstantMessagingProfile = [[NSNumber alloc] initWithInt:(int)kABPersonInstantMessageProperty];
+			
 			// Check if a filter exists and matches the required name, if it does, display it
 			int numOfFilters = [delegate.contactDisplayFilters count];
-
+			
 			for ( int i = 0; i < numOfFilters; ++i )
 			{
-				const char *currentFilter = [[NSString stringWithFormat:@"%@", [delegate.contactDisplayFilters objectAtIndex:i]] UTF8String];
-
+				const char *currentFilter = [[NSString stringWithFormat:@"%@",[delegate.contactDisplayFilters objectAtIndex:i]] UTF8String];
+				
 				if ( 0 == strcmp( "phone", currentFilter ) )
 				{
 					[displayedItems addObject:propertiesPersonPhone];
@@ -1260,9 +1271,29 @@ viewContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 				{
 					[displayedItems addObject:propertiesPersonEmail];
 				}
+				else if ( 0 == strcmp( "urls", currentFilter ) )
+				{
+					[displayedItems addObject:propertiesPersonUrl];
+				}
 				else if ( 0 == strcmp( "birthday", currentFilter ) )
 				{
 					[displayedItems addObject:propertiesPersonBirthday];
+				}
+				else if ( 0  == strcmp( "relatedNames", currentFilter ) )
+				{
+					[displayedItems addObject:propertiesPersonRelatedNames];
+				}
+				else if ( 0 == strcmp( "address", currentFilter ) )
+				{
+					[displayedItems addObject:propertiesPersonAddress];
+				}
+				else if ( 0 == strcmp( "socialProfiles", currentFilter ) )
+				{
+					[displayedItems addObject:propertiesPersonSocialProfile];
+				}
+				else if ( 0 == strcmp( "instantMessagingProfiles", currentFilter ) )
+				{
+					[displayedItems addObject:propertiesPersonInstantMessagingProfile];
 				}
 			}
 
@@ -1346,10 +1377,16 @@ newContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddress
 static int
 unknownContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddressBookDelegate *delegate, const char *chosenAddressBookOption )
 {
-	// Retrieve the alternateName & message passed by lua (if any)
-	const char *alternateName = luaRetrieveString( L, -1, "alternateName", chosenAddressBookOption );
-	const char *message = luaRetrieveString( L, -1, "message", chosenAddressBookOption );
-
+	const char *alternateName = NULL;
+	const char *message = NULL;
+	
+	// Get the fields from lua
+	if ( lua_istable( L, 2 ) )
+	{
+		alternateName = luaGetStringFromField( L, 2, "alternateName" );
+		message = luaGetStringFromField( L, 2, "message" );
+	}
+		
 	// Create a new person record
 	ABRecordRef newPerson = ABPersonCreate();
 
@@ -1372,7 +1409,7 @@ unknownContact( lua_State *L, UIViewController *runtimeViewController, CoronaAdd
 			picker.alternateName = value;
 			picker.title = value;
 		}
-			
+		
 		// If there is a message
 		if ( message )
 		{
@@ -1433,7 +1470,7 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 	int result = 0;
 	
 	// Retrieve the popup name
-	const char *popUpName =lua_tostring( L, 1 );
+	const char *popUpName = lua_tostring( L, 1 );
 
 	if ( context && 0 == strcmp( "addressbook", popUpName ) )
 	{
@@ -1447,9 +1484,9 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 		
 		// Assign the lua state so we can access it from within the delegate
 		delegate.luaState = L;
-
-		// Set the callback reference to 0
-		delegate.callbackRef = 0;
+		
+		// Set the callback reference to MULL
+		delegate.listenerRef = NULL;
 		
 		// Set reference to onComplete function
 		if ( lua_istable( L, 2 ) )
@@ -1457,21 +1494,30 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 			// Get listener key
 			lua_getfield( L, 2, "listener" );
 			
-			// Set the delegates callbackRef to reference the onComplete function (if it exists)
-			if ( lua_isfunction( L, -1 ) )
+			// Set the delegates listenerRef to reference the onComplete function (if it exists)
+			if ( Lua::IsListener( L, -1, "addressBook" ) )
 			{
-				delegate.callbackRef = luaL_ref( L, LUA_REGISTRYINDEX );
+				delegate.listenerRef = Lua::NewRef( L, -1 );
 			}
+			// Pop listener key
+			lua_pop( L, 1 );
+		}
+		else
+		{
+			luaL_error( L, "The second argument to native.showPopup( 'addressbook' ) must be a table" );
 		}
 		
 		// Initialize the display filters array
 		delegate.contactDisplayFilters = [[NSMutableArray alloc] init];
 
 		// Get the option key
-		lua_getfield(L, 2, "option" );
+		lua_getfield( L, 2, "option" );
 
 		// Check the "name" parameter from lua
 		const char *chosenAddressBookOption = lua_tostring( L, -1 );
+		
+		// Pop options key
+		lua_pop( L, 1 );
 
 		// If there was no option key passed
 		if ( NULL == chosenAddressBookOption )
@@ -1526,6 +1572,9 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 		{
 			luaL_error( L, "Unrecognized 'option' parameter passed to showPopup()", chosenAddressBookOption );
 		}
+		
+		// Pop options table
+		lua_pop( L, 1 );
 
 		// Cleanup
 		[delegate.contactDisplayFilters release];
@@ -1542,7 +1591,6 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 // ----------------------------------------------------------------------------
 
 
-#include <string>
 // Implementation
 @implementation CoronaAddressBookDelegate
 
@@ -1554,14 +1602,14 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 - (int) dispatchAddressBookEvent:(ABRecordRef)person :(const char *)eventType
 {
 	// If there is a callback to execute
-	if ( 0 != self.callbackRef )
+	if ( NULL != self.listenerRef )
 	{
-		// Push the onComplete function onto the stack
-		lua_rawgeti( self.luaState, LUA_REGISTRYINDEX, self.callbackRef );
+		// Create the event
+		Corona::Lua::NewEvent( self.luaState, "contact" );
+		lua_pushstring( self.luaState, [self.chosenAddressBookOption UTF8String] );
+		lua_setfield( self.luaState, -2, CoronaEventTypeKey() );
 
-		// event table
-		lua_newtable( self.luaState );
-
+		// Create the events members
 		if ( nil != eventType && 0 == strcmp( "data", eventType ) )
 		{			
 			// event.data table
@@ -2026,24 +2074,15 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 			// Set event.data
 			lua_setfield( self.luaState, -2, "data" );
 		}
-
-		// Set table events ( event.* )
-
-		// Set event.name property
-		lua_pushstring( self.luaState, "contact" ); // Value ( name )
-		lua_setfield( self.luaState, -2, "name" ); // Key
-
-		// Set event.type
-		const char *eventName = [self.chosenAddressBookOption UTF8String];
-
-		lua_pushstring( self.luaState, eventName ); // Value ( function type name )
-		lua_setfield( self.luaState, -2, "type" ); // Key
-
-		// Call the onComplete function
-		Corona::Lua::DoCall( self.luaState, 1, 1 );
 		
-		// Free the refrence
-		lua_unref( self.luaState, self.callbackRef );
+		// Dispatch the event
+		Corona::Lua::DispatchEvent( self.luaState, self.listenerRef, 1 );
+				
+		// Free native reference to listener
+		Corona::Lua::DeleteRef( self.luaState, self.listenerRef );
+		
+		// Null the reference
+		self.listenerRef = NULL;
 	}
 
 	return 0;
