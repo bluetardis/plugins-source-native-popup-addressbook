@@ -154,12 +154,12 @@ function scene:enterScene( event )
 	}
 	
 	-- Create some information text
-	local appendText = display.newText( group, "Append Info To Contact", 0, 50, native.systemFontBold, 16 )
+	local appendText = display.newText( group, "Append Info To Contact", 0, 60, native.systemFontBold, 16 )
 	appendText.x = display.contentCenterX
 	appendText:setTextColor( 0 )
 	
 	-- Create a text box that will be used to display the information retrieved from the onComplete listener below
-	local textBox = native.newTextBox( 20, 100, 280, 240 )
+	local textBox = native.newTextBox( display.contentCenterX, 240, 280, 240 )
 	textBox.isEditable = false
 	textBox.text = "Alternate Name: " .. unknownContactOptions.alternateName .. "\nMessage: " .. unknownContactOptions.message .. "\nOrganization: " .. unknownContactOptions.data.organization .. "\nWork Email: " .. unknownContactOptions.data.workEmail
 	textBox.size = 16

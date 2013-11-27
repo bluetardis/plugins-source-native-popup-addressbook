@@ -44,18 +44,21 @@ end
 display.setStatusBar( display.HiddenStatusBar )
 
 -- Create a gradient for the top-half of the toolbar
-local toolbarGradient = graphics.newGradient( {168, 181, 198, 255 }, {139, 157, 180, 255}, "down" )
+local toolbarGradient = 
+{
+    type = "gradient",
+    color1 = { 0.65, 0.70, 0.77, 1 }, 
+    color2 = { 0.54, 0.61, 0.70, 1 }, 
+    direction = "down", 
+}
 
 -- Create toolbar to go at the top of the screen
-local titleBar = display.newRect( 0, 0, display.contentWidth, 44 )
+local titleBar = display.newRect( display.contentCenterX, 22, display.contentWidth, 44 )
 titleBar:setFillColor( toolbarGradient )
 
 -- Create embossed text to go on the toolbar
-local titleText = display.newEmbossedText( "Address Book Demo", 0, 0, native.systemFontBold, 20 )
-titleText:setReferencePoint( display.CenterReferencePoint )
-titleText:setTextColor( 255 )
-titleText.x = 160
-titleText.y = titleBar.y
+local titleText = display.newEmbossedText( "Address Book Demo", 160, titleBar.y, native.systemFontBold, 20 )
+
 
 -- Create the tabBar's buttons
 local tabButtons = 
@@ -68,11 +71,11 @@ local tabButtons =
         label = "List",
         labelColor =
         {
-            default = { 255, 255, 255, 128 },
-            over = { 255, 255, 255 },
+            default = { 0, 0, 0, 1 },
+            over = { 0.2, 0.2, 1 },
         },
         font = native.systemFontBold,
-        size = 8,
+        size = 10,
         onPress = function() storyboard.gotoScene( "listContacts" ) end,
         selected = true
     },
@@ -84,11 +87,11 @@ local tabButtons =
         label = "Create",
         labelColor =
         {
-            default = { 255, 255, 255, 128 },
-            over = { 255, 255, 255 },
+            default = { 0, 0, 0, 1 },
+            over = { 0.2, 0.2, 1 },
         },
         font = native.systemFontBold,
-        size = 8,
+        size = 10,
         onPress = function() storyboard.gotoScene( "createContact" ) end,
         selected = false
     },
@@ -100,11 +103,11 @@ local tabButtons =
         label = "Edit",
         labelColor =
         {
-            default = { 255, 255, 255, 128 },
-            over = { 255, 255, 255 },
+            default = { 0, 0, 0, 1 },
+            over = { 0.2, 0.2, 1 },
         },
         font = native.systemFontBold,
-        size = 8,
+        size = 10,
         onPress = function() storyboard.gotoScene( "editContact" ) end,
         selected = false
     },
@@ -116,11 +119,11 @@ local tabButtons =
         label = "Add/Append",
         labelColor =
         {
-            default = { 255, 255, 255, 128 },
-            over = { 255, 255, 255 },
+            default = { 0, 0, 0, 1 },
+            over = { 0.2, 0.2, 1 },
         },
         font = native.systemFontBold,
-        size = 8,
+        size = 10,
         onPress = function() storyboard.gotoScene( "addToOrAppendContact" ) end,
         selected = false
     }
