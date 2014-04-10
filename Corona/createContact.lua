@@ -142,7 +142,7 @@ function scene:enterScene( event )
 	}
 	
 	-- Create some information text
-	local createContactText = display.newText( group, "Create A Contact", 0, 50, native.systemFontBold, 16 )
+	local createContactText = display.newText( group, "Create A Contact", 0, 60, native.systemFontBold, 16 )
 	createContactText.x = display.contentCenterX
 	createContactText:setTextColor( 0 )
 	
@@ -189,7 +189,7 @@ function scene:enterScene( event )
 	self.organizationField = organizationField
 	
 	-- Create a text box that will be used to display the information retrieved from the onComplete listener below
-	local textBox = native.newTextBox( 20, 160, 280, 180 )
+	local textBox = native.newTextBox( display.contentCenterX, 260, 280, 180 )
 	textBox.isEditable = false
 	textBox.size = 16
 	self.textBox = textBox

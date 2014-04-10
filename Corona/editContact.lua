@@ -77,7 +77,7 @@ function scene:enterScene( event )
 	}
 	
 	-- Create some information text
-	local contactName = display.newText( group, "Enter Name Of Contact To Edit", 0, 50, native.systemFontBold, 16 )
+	local contactName = display.newText( group, "Enter Name Of Contact To Edit", 0, 60, native.systemFontBold, 16 )
 	contactName.x = display.contentCenterX
 	contactName:setTextColor( 0 )
 	
@@ -93,7 +93,7 @@ function scene:enterScene( event )
 	end
 	
 	-- The namefield
-	local nameField = native.newTextField( 20, 80, 280, 30 )
+	local nameField = native.newTextField( 20, 100, 280, 30 )
 	nameField.x = display.contentCenterX
 	nameField.placeholder = "Name of the contact to edit"
 	nameField:addEventListener( "userInput", onUserInput )
@@ -101,7 +101,7 @@ function scene:enterScene( event )
 	self.nameField = nameField
 	
 	-- Create a text box that will be used to display the information retrieved from the onComplete listener below
-	local textBox = native.newTextBox( 20, 120, 280, 220 )
+	local textBox = native.newTextBox( display.contentCenterX, 240, 280, 220 )
 	textBox.isEditable = false
 	textBox.size = 16
 	self.textBox = textBox

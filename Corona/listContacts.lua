@@ -77,11 +77,11 @@ function scene:enterScene( event )
 	}
 	
 	-- Create some text to show the selected contacts name
-	local contactName = display.newText( group, "Select A Contact: ", 20, 50, 300, 0, native.systemFontBold, 16 )
+	local contactName = display.newText( group, "Select A Contact: ", display.contentCenterX, 60, 300, 0, native.systemFontBold, 16 )
 	contactName:setTextColor( 0 )
 	
 	-- Create a text box that will be used to display the information retrieved from the onComplete listener below
-	local textBox = native.newTextBox( 20, 100, 280, 240 )
+	local textBox = native.newTextBox( display.contentCenterX, 240, 280, 240 )
 	textBox.isEditable = false
 	textBox.size = 16
 	self.textBox = textBox
