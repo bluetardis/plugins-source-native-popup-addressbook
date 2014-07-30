@@ -2074,14 +2074,14 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 - (void) cancelledFromPicker:(id)sender
 {
 	// Dismiss the current view controller
-	[self.currentViewController dismissModalViewControllerAnimated:YES];
-
-	// If the user hasn't chosen a person ( ie a direct cancel action )
-	if ( false == self.hasChosenPerson )
-	{
-		// Dispatch cancelled event ( if one exists )
-		[self dispatchAddressBookEvent:nil:nil];
-	}
+	[self.currentViewController dismissViewControllerAnimated:YES completion:^{
+		// If the user hasn't chosen a person ( ie a direct cancel action )
+		if ( false == self.hasChosenPerson )
+		{
+			// Dispatch cancelled event ( if one exists )
+			[self dispatchAddressBookEvent:nil:nil];
+		}
+	}];
 
 	// Set chosen person back to false
 	self.hasChosenPerson = false;	
@@ -2094,11 +2094,10 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 	// If we should hide details, dismiss the picker upon selecting a contact
 	if ( true == shouldHideDetails )
 	{
-		// Dismiss the picker
-		[peoplePicker dismissModalViewControllerAnimated:YES];
-
-		// Dispatch data event ( if one exists )
-		[self dispatchAddressBookEvent:person:"data"];
+		[peoplePicker dismissViewControllerAnimated:YES completion:^{
+			// Dispatch cancelled event ( if one exists )
+			[self dispatchAddressBookEvent:person:"data"];
+		}];
 	}
 
 	// The ! is intended
@@ -2116,10 +2115,10 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 - (void)peoplePickerNavigationControllerDidCancel:(ABPeoplePickerNavigationController *)peoplePicker
 {
 	// Dismiss the picker
-	[peoplePicker dismissModalViewControllerAnimated:YES];
-
-	// Dispatch cancelled event ( if one exists )
-	[self dispatchAddressBookEvent:nil:nil];
+	[peoplePicker dismissViewControllerAnimated:YES completion:^{
+		// Dispatch cancelled event ( if one exists )
+		[self dispatchAddressBookEvent:nil:nil];
+	}];
 }
 
 
@@ -2137,20 +2136,20 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 - (void)newPersonViewController:(ABNewPersonViewController *)newPersonViewController didCompleteWithNewPerson:(ABRecordRef)person
 {
 	// Dismiss the picker
-	[newPersonViewController dismissModalViewControllerAnimated:YES];
-
-	// If user cancelled
-	if ( NULL == person )
-	{
-		// Dispatch cancelled event ( if one exists )
-		[self dispatchAddressBookEvent:nil:nil];
-	}
-	// If user entered contact
-	else
-	{
-		// Dispatch data event ( if one exists )
-		[self dispatchAddressBookEvent:person:"data"];
-	}
+	[newPersonViewController dismissViewControllerAnimated:YES completion:^{
+		// If user cancelled
+		if ( NULL == person )
+		{
+			// Dispatch cancelled event ( if one exists )
+			[self dispatchAddressBookEvent:nil:nil];
+		}
+		// If user entered contact
+		else
+		{
+			// Dispatch data event ( if one exists )
+			[self dispatchAddressBookEvent:person:"data"];
+		}
+	}];
 }
 
 
@@ -2159,18 +2158,17 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 - (void)unknownPersonViewController:(ABUnknownPersonViewController *)unknownPersonView didResolveToPerson:(ABRecordRef)person
 {
 	using namespace Corona;
-	// Dismiss the picker
-	[unknownPersonView dismissModalViewControllerAnimated:YES];
-		
-	// If the details were added to a contact or used to create a contact
-	if ( person )
-	{
-		// We have chosen a person
-		self.hasChosenPerson = true;
-		
-		// Dispatch data event ( if one exists )
-		[self dispatchAddressBookEvent:person:"data"];
-	}
+	[unknownPersonView dismissViewControllerAnimated:YES completion:^{
+		// If the details were added to a contact or used to create a contact
+		if ( person )
+		{
+			// We have chosen a person
+			self.hasChosenPerson = true;
+			
+			// Dispatch data event ( if one exists )
+			[self dispatchAddressBookEvent:person:"data"];
+		}
+	}];
 }
 
 // If allowed execute default actions such as dialing a phone number, when they select a contact property.
