@@ -1079,6 +1079,16 @@ pickContact( lua_State *L, UIViewController *runtimeViewController, CoronaAddres
 	ABPeoplePickerNavigationController *picker = [[ABPeoplePickerNavigationController alloc] init];
 	picker.peoplePickerDelegate = delegate;
 	
+	if ( [picker respondsToSelector:@selector(predicateForSelectionOfPerson)] )
+	{
+		picker.predicateForSelectionOfPerson = [NSPredicate predicateWithValue:delegate.shouldHideDetails];
+	}
+	
+	if ( [picker respondsToSelector:@selector(predicateForSelectionOfProperty)] )
+	{
+		picker.predicateForSelectionOfProperty = [NSPredicate predicateWithValue:!delegate.shouldPerformDefaultAction];
+	}
+	
 	// If the user hasn't specified to hide the detail view of contact info
 	if ( false == delegate.shouldHideDetails )
 	{
@@ -2121,6 +2131,21 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 	}];
 }
 
+- (void)peoplePickerNavigationController:(ABPeoplePickerNavigationController *)peoplePicker didSelectPerson:(ABRecordRef)person
+{
+	if ( shouldHideDetails )
+	{
+		[self dispatchAddressBookEvent:person:"data"];
+	}
+}
+
+- (void)peoplePickerNavigationController:(ABPeoplePickerNavigationController *)peoplePicker
+						 didSelectPerson:(ABRecordRef)person
+								property:(ABPropertyID)property
+							  identifier:(ABMultiValueIdentifier)identifier
+{
+	[peoplePicker dismissViewControllerAnimated:YES completion:nil];
+}
 
 #pragma mark ABPersonViewControllerDelegate methods
 // If allowed execute default actions such as dialing a phone number, when they select a contact property.
