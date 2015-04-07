@@ -119,7 +119,6 @@ class IOSAddressBookNativePopupProvider
 static const char kPopupName[] = "addressbook";
 static const char kMetatableName[] = __FILE__; // Globally unique value
 
-
 int
 IOSAddressBookNativePopupProvider::Open( lua_State *L )
 {
@@ -1591,6 +1590,8 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 @synthesize shouldAllowActions, shouldAllowAdding, hasChosenPerson;
 
 // Only execute callback function if there is a reference to it ( if there isn't it means no callback function was passed )
+// TODO: Handle collisions with having the same label with data of the same type.
+// For example: If a user has 3 different phone numbers with the "mobile" label, we should give both back.
 - (int) dispatchAddressBookEvent:(ABRecordRef)person :(const char *)eventType
 {
 	// If there is a callback to execute
@@ -1770,22 +1771,19 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 				for ( int j = 0; j < ABMultiValueGetCount( allUrls ); j ++ )
 				{
 					NSString *url = (NSString *)ABMultiValueCopyValueAtIndex(allUrls, j);
-					NSString *key = [NSString stringWithFormat:@"%s%d", "otherUrl", ( -2 ) + j];
+                    NSString *key = (NSString *)ABMultiValueCopyLabelAtIndex(allUrls, j);
 					
-					switch( j )
-					{
-						case 0:
-							key = @"homePageUrl";
-							break;
-							
-						case 1:
-							key = @"homeUrl";
-							break;
-							
-						case 2:
-							key = @"workUrl";
-							break;
-					}
+                    // Casenum 39658:
+                    // Convert the default keys to our own format.
+                    // We do this to not break our customer's code.
+                    // NOTE: Default home page label is "home page" in iOS 6, but not in iOS 8 it's "homepage".
+                    // Fortunately, the key returned from ABMultiValueCopyLabelAtIndex is the same for both OSs.
+                    if ( [key isEqualToString:(NSString*)kABPersonHomePageLabel] ) key = @"homePageUrl";
+                    else if ( [key isEqualToString:(NSString*)kABHomeLabel] ) key = @"homeUrl";
+                    else if ( [key isEqualToString:(NSString*)kABWorkLabel] ) key = @"workUrl";
+                    else if ( [key isEqualToString:(NSString*)kABOtherLabel] ) key = @"otherUrl";
+                    // Append "Url" prefix if using a custom label
+                    else key = [key stringByAppendingString:@"Url"];
 					
 					lua_pushstring( self.luaState, [url UTF8String] ); // Value
 					lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
@@ -1922,37 +1920,28 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 				for ( int j = 0; j < ABMultiValueGetCount( addresses ); j ++ )		
 				{
 					CFDictionaryRef dict = (CFDictionaryRef)ABMultiValueCopyValueAtIndex(addresses, j);
-					
-					NSString *street = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStreetKey) copy];
-					NSString *city = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCityKey) copy];
-					NSString *state = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStateKey) copy];
-					NSString *zipCode = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressZIPKey) copy];
-					NSString *country = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCountryKey) copy];
-
-					NSString *streetKey = [NSString stringWithFormat:@"%s%d", "otherStreet", ( -1 ) + j];
-					NSString *cityKey = [NSString stringWithFormat:@"%s%d", "otherCity", ( -1 ) + j];
-					NSString *stateKey = [NSString stringWithFormat:@"%s%d", "otherState", ( -1 ) + j];
-					NSString *zipKey = [NSString stringWithFormat:@"%s%d", "otherZip", ( -1 ) + j];
-					NSString *countryKey = [NSString stringWithFormat:@"%s%d", "otherCountry", ( -1 ) + j];
-					
-					switch( j )
-					{
-						case 0:
-							streetKey = @"homeStreet";
-							cityKey = @"homeCity";
-							stateKey = @"homeState";
-							zipKey = @"homeZip";
-							countryKey = @"homeCountry";
-							break;
-							
-						case 1:
-							streetKey = @"workStreet";
-							cityKey = @"workCity";
-							stateKey = @"workState";
-							zipKey = @"workZip";
-							countryKey = @"workCountry";
-							break;
-					}
+                    NSString *addressLabel = (NSString *)ABMultiValueCopyLabelAtIndex(addresses, j);
+                    
+                    NSString *street = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStreetKey) copy];
+                    NSString *city = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCityKey) copy];
+                    NSString *state = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressStateKey) copy];
+                    NSString *zipCode = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressZIPKey) copy];
+                    NSString *country = [(NSString *)CFDictionaryGetValue(dict, kABPersonAddressCountryKey) copy];
+                    
+                    // Casenum 39658:
+                    // Convert the default keys to our own format.
+                    // We do this to not break our customer's code.
+                    // Convert the address label if necessary.
+                    if ( [addressLabel isEqualToString:(NSString*)kABHomeLabel] ) addressLabel = @"home";
+                    else if ( [addressLabel isEqualToString:(NSString*)kABWorkLabel] ) addressLabel = @"work";
+                    else if ( [addressLabel isEqualToString:(NSString*)kABOtherLabel] ) addressLabel = @"other";
+                    
+                    // Here we just append the default sub keys to the address label for each sub key
+                    NSString *streetKey = [NSString stringWithFormat:@"%@%@", addressLabel, kABPersonAddressStreetKey];
+                    NSString *cityKey = [NSString stringWithFormat:@"%@%@", addressLabel, kABPersonAddressCityKey];
+                    NSString *stateKey = [NSString stringWithFormat:@"%@%@", addressLabel, kABPersonAddressStateKey];
+                    NSString *zipKey = [NSString stringWithFormat:@"%@%@", addressLabel, kABPersonAddressZIPKey];
+                    NSString *countryKey = [NSString stringWithFormat:@"%@%@", addressLabel, kABPersonAddressCountryKey];
 					
 					// Street
 					lua_pushstring( self.luaState, [street UTF8String] ); // Value
@@ -1983,10 +1972,15 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 				for ( int j = 0; j < ABMultiValueGetCount( emailAddresses ); j ++ )
 				{
 					NSString *email = (NSString *)ABMultiValueCopyValueAtIndex(emailAddresses, j);
-					NSString *key = [NSString stringWithFormat:@"%s%d", "otherEmail", ( -1 ) + j];
-					
-					if ( j == 0 ) key = @"homeEmail";
-					else if ( j == 1 ) key = @"workEmail";
+					NSString *key = (NSString *)ABMultiValueCopyLabelAtIndex(emailAddresses, j);
+                    
+                    if ( [key isEqualToString:(NSString*)kABHomeLabel] ) key = @"homeEmail";
+                    else if ( [key isEqualToString:(NSString*)kABWorkLabel] ) key = @"workEmail";
+                    // iCloud label is only default on iOS 7+. Doesn't have a constant defined in AddressBook/ABPerson.h
+                    else if ( [key isEqualToString:@"iCloud"] ) key = @"ICloudEmail";
+                    else if ( [key isEqualToString:(NSString*)kABOtherLabel] ) key = @"otherEmail";
+                    // Append "Email" prefix if using a custom label
+                    else key = [key stringByAppendingString:@"Email"];
 					
 					lua_pushstring( self.luaState, [email UTF8String] ); // Value
 					lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
@@ -2000,46 +1994,27 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 				for ( int j = 0; j < ABMultiValueGetCount( phoneNumbers ); j ++ )
 				{
 					NSString *phone = (NSString *)ABMultiValueCopyValueAtIndex(phoneNumbers, j);
-					NSString *key = [NSString stringWithFormat:@"%s%d", "otherPhone", ( -8 ) + j];
-					
-					switch( j )
-					{
-						case 0:
-							key = @"phoneMobile";
-							break;
-						
-						case 1:
-							key = @"phoneIphone";
-							break;
-						
-						case 2:
-							key = @"phoneHome";
-							break;
-							
-						case 3:
-							key = @"phoneWork";
-							break;
-							
-						case 4:
-							key = @"phoneMain";
-							break;
-							
-						case 5:
-							key = @"faxHome";
-							break;
-							
-						case 6:
-							key = @"faxWork";
-							break;
-						 
-						case 7:
-							key = @"faxOther";
-							break;
-							
-						case 8:
-							key = @"pager";
-							break;
-					}
+                    NSString *key = (NSString *)ABMultiValueCopyLabelAtIndex(phoneNumbers, j);
+
+                    // Casenum 39658:
+                    // Convert the default keys to our own format.
+                    // We do this to not break our customer's code.
+                    if ( [key isEqualToString:(NSString*)kABPersonPhoneMobileLabel] ) key = @"phoneMobile";
+                    else if ( [key isEqualToString:(NSString*)kABPersonPhoneIPhoneLabel] ) key = @"phoneIphone";
+                    else if ( [key isEqualToString:(NSString*)kABHomeLabel] ) key = @"phoneHome";
+                    else if ( [key isEqualToString:(NSString*)kABWorkLabel] ) key = @"phoneWork";
+                    else if ( [key isEqualToString:(NSString*)kABPersonPhoneMainLabel] ) key = @"phoneMain";
+                    else if ( [key isEqualToString:(NSString*)kABPersonPhoneHomeFAXLabel] ) key = @"faxHome";
+                    else if ( [key isEqualToString:(NSString*)kABPersonPhoneWorkFAXLabel] ) key = @"faxWork";
+                    // OtherFAX is only a default label on iOS 6 and below
+                    else if ( [key isEqualToString:(NSString*)kABPersonPhoneOtherFAXLabel] ) key = @"faxOther";
+                    else if ( [key isEqualToString:(NSString*)kABPersonPhonePagerLabel] ) key = @"pager";
+                    // "otherPhone" was the default label we've always provided.
+                    // TODO: Discuss changing this to phoneOther to be consistent with the rest.
+                    // Main issue being that our customers using this would still be expecting "otherPhone" in their code.
+                    else if ( [key isEqualToString:(NSString*)kABOtherLabel] ) key = @"otherPhone";
+                    // Prepend "phone" prefix if using a custom label
+                    else key = [NSString stringWithFormat:@"%@%@", @"phone", key];
 									
 					lua_pushstring( self.luaState, [phone UTF8String] ); // Value
 					lua_setfield( self.luaState, -2, [key UTF8String] ); // Key
@@ -2054,9 +2029,15 @@ IOSAddressBookNativePopupProvider::showPopup( lua_State *L )
 				{
 					NSDate *anniversaryDate = (NSDate *)ABMultiValueCopyValueAtIndex(dates, j);
 					NSString *dateValue = [NSDateFormatter localizedStringFromDate:anniversaryDate dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterNoStyle];
-					NSString *dateKey = [NSString stringWithFormat:@"%s%d", "otherDate", j];
-
-					if ( j == 0 ) dateKey = @"anniversary";
+                    NSString *dateKey = (NSString *)ABMultiValueCopyLabelAtIndex(dates, j);
+                    
+                    // Casenum 39658:
+                    // Convert the default keys to our own format.
+                    // We do this to not break our customer's code.
+                    if ( [dateKey isEqualToString:(NSString*)kABPersonAnniversaryLabel] ) dateKey = @"anniversary";
+                    else if ( [dateKey isEqualToString:(NSString*)kABOtherLabel] ) dateKey = @"otherDate";
+                    // Append "Date" prefix if using a custom label
+                    else dateKey = [dateKey stringByAppendingString:@"Date"];
 								
 					lua_pushstring( self.luaState, [dateValue UTF8String] ); // Value
 					lua_setfield( self.luaState, -2, [dateKey UTF8String] ); // Key
